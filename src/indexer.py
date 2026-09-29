@@ -1,4 +1,4 @@
-from parser import parser
+from document_parser import parser
 from stemmer import stem
 
 def index(pages):
@@ -6,6 +6,14 @@ def index(pages):
     document_length = {}
     document_frequency = {}
     total_documents = len(pages)
+    if total_documents == 0:
+        return {
+            "inverted_index": {},
+            "document_length": {},
+            "document_frequency": {},
+            "avg_document_length": 0,
+            "total_documents": 0
+        }
     
     for url, content in pages.items():
         words = stem(parser(content))
@@ -21,7 +29,7 @@ def index(pages):
             inverted_index[word][url]["tf"] += 1
             inverted_index[word][url]["positions"].append(position)
             
-    avg_document_length = sum(document_length.values()) / len(document_length)
+    avg_document_length = sum(document_length.values()) / total_documents
     search_index = {
         "inverted_index": inverted_index,
         "document_length": document_length,
@@ -29,4 +37,5 @@ def index(pages):
         "avg_document_length": avg_document_length,
         "total_documents": total_documents
     }
+    
     return search_index
