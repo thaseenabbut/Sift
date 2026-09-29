@@ -1,5 +1,4 @@
-from ranker import bm25_parameters
-from parser import parser
+from document_parser import parser
 from stemmer import stem
 from retriever import retrieve, phrase_search
 from ranker import score_document

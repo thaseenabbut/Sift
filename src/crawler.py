@@ -2,8 +2,6 @@ import requests
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from collections import deque
-from parser import parser
-from stemmer import stem
 
 def crawl(seed_urls, max_pages=100):
     if isinstance(seed_urls, str):
@@ -18,7 +16,10 @@ def crawl(seed_urls, max_pages=100):
     while queue and len(pages) < max_pages:
         current_url = queue.popleft()
         try:
-            response = requests.get(current_url, timeout=5)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+               }
+            response = requests.get(current_url, headers=headers, timeout=5)
         except requests.RequestException:
             continue
         if response.status_code == 200:
@@ -32,12 +33,3 @@ def crawl(seed_urls, max_pages=100):
                     visited.add(full_url)
                     queue.append(full_url)
     return pages
-
-pages = crawl("https://en.wikipedia.org/wiki/Web_crawler", max_pages=100)
-
-print("Pages crawled:", len(pages))
-
-for url, html in pages.items():
-    stemmed_tokens = stem(parser(html))
-    print(url)
-    print(stemmed_tokens[:20])
