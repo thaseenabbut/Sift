@@ -1,10 +1,11 @@
+from ranker import bm25_parameters
 from parser import parser
 from stemmer import stem
 from retriever import retrieve, phrase_search
-from ranker import score_document, bm25_parameters
-from indexer import index, documents
+from ranker import score_document
+from results import results
 
-def search(query, search_index, bm25_parameters):
+def search(query, search_index, bm25_parameters, pages):
     scored_docs = []
     
     is_phrase_query = query.startswith('"') and query.endswith('"')
@@ -21,6 +22,4 @@ def search(query, search_index, bm25_parameters):
         score = score_document(query_terms, doc_id, search_index, bm25_parameters)
         scored_docs.append((doc_id, score))
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    return scored_docs
-
-print("Results: ", search('Python programming', index(documents), bm25_parameters))
+    return results(scored_docs, pages)
