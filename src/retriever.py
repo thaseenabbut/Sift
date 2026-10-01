@@ -13,6 +13,12 @@ def retrieve(parsed_query, search_index):
     for term in parsed_query["intitle"]:
         if term in inverted_index:
             candidates.update(inverted_index[term].keys())
+    for term in parsed_query["inurl"]:
+        if term in inverted_index:
+            candidates.update(inverted_index[term].keys())
+    for term in parsed_query["related"]:
+        if term in inverted_index:
+            candidates.update(inverted_index[term].keys())
     for term in parsed_query["required"]:
         if term in inverted_index:
             candidates &= set(inverted_index[term].keys())
@@ -83,5 +89,17 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
             return all(term in title for term in parsed_query["intitle"])
         
         filtered = {doc_id for doc_id in filtered if title_contains_terms(doc_id)}
+        
+    if parsed_query["inurl"]:
+        def url_contains_terms(doc_id):
+            return all(term in doc_id.lower() for term in parsed_query["inurl"])
+        
+        filtered = {doc_id for doc_id in filtered if url_contains_terms(doc_id)}
+
+    if parsed_query["related"]:
+        def related_contains_terms(doc_id):
+            return all(term in doc_id.lower() for term in parsed_query["related"])
+        
+        filtered = {doc_id for doc_id in filtered if related_contains_terms(doc_id)}
 
     return filtered

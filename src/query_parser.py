@@ -11,6 +11,8 @@ def parse_query(raw_query: str) -> dict:
         "phrases": [],
         "site_filter": None,
         "intitle": [],
+        "inurl": [],
+        "related": []
     }
 
     phrase_pattern = re.compile(r'"([^"]+)"')
@@ -30,6 +32,16 @@ def parse_query(raw_query: str) -> dict:
     for match in intitle_pattern.findall(raw_query):
         query["intitle"].extend(stem(tokenize(match)))
     raw_query = intitle_pattern.sub('', raw_query)
+    
+    inurl_pattern = re.compile(r'\binurl:(\S+)', re.IGNORECASE)
+    for match in inurl_pattern.findall(raw_query):
+        query["inurl"].extend(stem(tokenize(match)))
+    raw_query = inurl_pattern.sub('', raw_query)
+    
+    related_pattern = re.compile(r'\brelated:(\S+)', re.IGNORECASE)
+    for match in related_pattern.findall(raw_query):
+        query["related"].extend(stem(tokenize(match)))
+    raw_query = related_pattern.sub('', raw_query)
 
     for token in raw_query.split():
         if token.startswith('-') and len(token) > 1:
