@@ -1,4 +1,5 @@
 from document_parser import parser
+from tokenizer import tokenize
 from stemmer import stem
 
 def index(pages):
@@ -16,7 +17,7 @@ def index(pages):
         }
     
     for url, content in pages.items():
-        words = stem(parser(content))
+        words = stem(tokenize(parser(content)))
         document_length[url] = len(words)
         for position, word in enumerate(words):
             if word not in inverted_index:
