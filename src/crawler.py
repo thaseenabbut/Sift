@@ -2,6 +2,7 @@ import requests
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from collections import deque
+from document_parser import parser
 
 def crawl(seed_urls, max_pages=100):
     if isinstance(seed_urls, str):
@@ -23,7 +24,8 @@ def crawl(seed_urls, max_pages=100):
         except requests.RequestException:
             continue
         if response.status_code == 200:
-            pages[current_url] = response.text
+            doc = parser(current_url, response.text)
+            pages[current_url] = doc
             soup = BeautifulSoup(response.text, 'html.parser')
             for link in soup.find_all('a', href=True):
                 href = link.get('href')
