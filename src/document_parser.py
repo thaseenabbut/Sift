@@ -1,13 +1,7 @@
-import re
 from bs4 import BeautifulSoup
 
 def parser(text):
     soup = BeautifulSoup(text, "html.parser")
-    for element in soup(["script", "style"]):
+    for element in soup(["script", "style", "nav", "footer", "hˀeader", "noscript", "aside"]):
         element.decompose()
-    text = soup.get_text(" ")
-    text = text.lower()
-    text = re.sub(r'-', ' ', text)
-    text = re.sub(r'[^\w\s]', '', text)
-    words = text.split()
-    return words
+    return soup.get_text(separator=" ", strip=True)
