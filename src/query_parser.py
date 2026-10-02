@@ -3,19 +3,19 @@ from tokenizer import tokenize
 from stemmer import stem
 from dataclasses import dataclass, field
 
-def parse_query(raw_query: str) -> dict:
-    
-    @dataclass
-    class ParsedQuery:
-        terms: list[str] = field(default_factory=list)
-        required: list[str] = field(default_factory=list)
-        excluded: list[str] = field(default_factory=list)
-        phrases: list[list[str]] = field(default_factory=list)
-        site_filter: str | None = None
-        intitle: list[str] = field(default_factory=list)
-        inurl: list[str] = field(default_factory=list)
-        related: list[str] = field(default_factory=list)
+@dataclass
+class ParsedQuery:
+    terms: list[str] = field(default_factory=list)
+    required: list[str] = field(default_factory=list)
+    excluded: list[str] = field(default_factory=list)
+    phrases: list[list[str]] = field(default_factory=list)
+    site_filter: str | None = None
+    intitle: list[str] = field(default_factory=list)
+    inurl: list[str] = field(default_factory=list)
+    related: list[str] = field(default_factory=list)
 
+def parse_query(raw_query: str) -> ParsedQuery:
+    
     query = ParsedQuery()
 
     phrase_pattern = re.compile(r'"([^"]+)"')
