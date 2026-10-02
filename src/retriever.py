@@ -82,7 +82,11 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
             title = pages[doc_id].title.lower() if doc_id in pages else ""
             return all(term in title for term in parsed_query.intitle)
 
-        filtered = {doc_id for doc_id in filtered if title_contains_terms(doc_id)}
+        filtered = {
+            doc_id
+            for doc_id in filtered
+            if title_contains_terms(doc_id)
+        }
 
     if parsed_query.inurl:
         def url_contains_terms(doc_id):
@@ -94,6 +98,10 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
         def related_contains_terms(doc_id):
             return all(term in doc_id.lower() for term in parsed_query.related)
 
-        filtered = {doc_id for doc_id in filtered if related_contains_terms(doc_id)}
+        filtered = {
+            doc_id
+            for doc_id in filtered
+            if related_contains_terms(doc_id)
+        }
 
     return filtered
