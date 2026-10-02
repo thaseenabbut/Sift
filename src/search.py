@@ -30,4 +30,4 @@ def search(query, search_index, bm25_parameters, pages):
         scored_docs.append((doc_id, score))
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    return results(scored_docs, pages)
+    return results(scored_docs, pages, parsed.terms + parsed.required)
