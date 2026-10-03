@@ -7,6 +7,7 @@ from crawler import crawl
 from indexer import index
 from search import search
 from ranker import bm25_parameters
+from rich import print
 
 def main():
     seed_urls = [
@@ -37,9 +38,10 @@ def main():
             search(query, search_index, bm25_parameters, pages)
             
         except KeyboardInterrupt:
+            print("[bold red]Exiting...[/bold red]")
             break
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"[bold red]An error occurred:[/bold red] {e}")
 
 if __name__ == "__main__":
     main()
