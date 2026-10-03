@@ -3,23 +3,23 @@ from urllib.parse import urlparse
 def retrieve(parsed_query, search_index):
     inverted_index = search_index.inverted_index
     candidates = set()
-    for term in parsed_query.terms:
+    for term in [term.stemmed for term in parsed_query.terms]:
         if term in inverted_index:
             candidates.update(inverted_index[term].keys())
     for phrase_terms in parsed_query.phrases:
-        for term in phrase_terms:
+        for term in [term.stemmed for term in phrase_terms]:
             if term in inverted_index:
                 candidates.update(inverted_index[term].keys())
-    for term in parsed_query.intitle:
+    for term in [term.stemmed for term in parsed_query.intitle]:
         if term in inverted_index:
             candidates.update(inverted_index[term].keys())
-    for term in parsed_query.inurl:
+    for term in [term.stemmed for term in parsed_query.inurl]:
         if term in inverted_index:
             candidates.update(inverted_index[term].keys())
-    for term in parsed_query.related:
+    for term in [term.stemmed for term in parsed_query.related]:
         if term in inverted_index:
             candidates.update(inverted_index[term].keys())
-    for term in parsed_query.required:
+    for term in [term.stemmed for term in parsed_query.required]:
         if term in inverted_index:
             candidates &= set(inverted_index[term].keys())
         else:
@@ -34,15 +34,16 @@ def phrase_search(query_terms, document_id, search_index):
         return False
 
     for term in query_terms:
-        if term not in search_index.inverted_index or document_id not in search_index.inverted_index[term]:
+        stemmed_term = term.stemmed
+        if stemmed_term not in search_index.inverted_index or document_id not in search_index.inverted_index[stemmed_term]:
             return False
 
-    first_term = query_terms[0]
+    first_term = query_terms[0].stemmed
     candidate_positions = search_index.inverted_index[first_term][document_id]["positions"]
 
     for i in range(1, len(query_terms)):
-        term = query_terms[i]
-        term_positions = set(search_index.inverted_index[term][document_id]["positions"])
+        stemmed_term = query_terms[i].stemmed
+        term_positions = set(search_index.inverted_index[stemmed_term][document_id]["positions"])
         candidate_positions = [pos for pos in candidate_positions if (pos + i) in term_positions]
         if not candidate_positions:
             return False
@@ -58,12 +59,12 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
             if phrase_search(phrase_terms, doc_id, search_index)
         }
 
-    for term in parsed_query.excluded:
+    for term in [term.stemmed for term in parsed_query.excluded]:
         if term in search_index.inverted_index:
             excluded_docs = set(search_index.inverted_index[term].keys())
             filtered -= excluded_docs
 
-    for term in parsed_query.required:
+    for term in [term.stemmed for term in parsed_query.required]:
         if term in search_index.inverted_index:
             required_docs = set(search_index.inverted_index[term].keys())
             filtered &= required_docs
@@ -80,7 +81,7 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
     if parsed_query.intitle:
         def title_contains_terms(doc_id):
             title = pages[doc_id].title.lower() if doc_id in pages else ""
-            return all(term in title for term in parsed_query.intitle)
+            return all(term.original.lower() in title for term in parsed_query.intitle)
 
         filtered = {
             doc_id
@@ -90,13 +91,13 @@ def apply_operators(parsed_query, relevant_docs, search_index, pages):
 
     if parsed_query.inurl:
         def url_contains_terms(doc_id):
-            return all(term in doc_id.lower() for term in parsed_query.inurl)
+            return all(term.original.lower() in doc_id.lower() for term in parsed_query.inurl)
 
         filtered = {doc_id for doc_id in filtered if url_contains_terms(doc_id)}
 
     if parsed_query.related:
         def related_contains_terms(doc_id):
-            return all(term in doc_id.lower() for term in parsed_query.related)
+            return all(term.original.lower() in doc_id.lower() for term in parsed_query.related)
 
         filtered = {
             doc_id
