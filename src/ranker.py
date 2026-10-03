@@ -25,6 +25,7 @@ def calculate_bm25(term, document_id, search_index, bm25_parameters):
 def score_document(query_terms, document_id, search_index, bm25_parameters):
     score = 0.0
     for term in query_terms:
-        if term in search_index.inverted_index and document_id in search_index.inverted_index[term]:
-            score += calculate_bm25(term, document_id, search_index, bm25_parameters)
+        stemmed_term = term.stemmed
+        if stemmed_term in search_index.inverted_index and document_id in search_index.inverted_index[stemmed_term]:
+            score += calculate_bm25(stemmed_term, document_id, search_index, bm25_parameters)
     return score
