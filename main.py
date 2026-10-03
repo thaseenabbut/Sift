@@ -40,6 +40,8 @@ def main():
         except KeyboardInterrupt:
             print("[bold red]Exiting...[/bold red]")
             break
+        except EOFError:
+            break
         except Exception as e:
             print(f"[bold red]An error occurred:[/bold red] {e}")
 
