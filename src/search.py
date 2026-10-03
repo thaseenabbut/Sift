@@ -21,8 +21,9 @@ def search(query, search_index, bm25_parameters, pages):
             }
 
     for doc_id in relevant_docs:
+        ranking_terms = parsed.terms + parsed.required
         score = score_document(
-            parsed.terms + parsed.required, 
+            ranking_terms,
             doc_id, 
             search_index, 
             bm25_parameters
@@ -30,4 +31,4 @@ def search(query, search_index, bm25_parameters, pages):
         scored_docs.append((doc_id, score))
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    return results(scored_docs, pages, parsed.terms + parsed.required)
+    return results(scored_docs, pages, parsed.terms + parsed.required, search_index)
