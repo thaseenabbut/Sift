@@ -9,7 +9,6 @@ class Page(Document):
     meta_description: Optional[str] = None
     clean_text: str
     h1_headers: List[str] = Field(default_factory=list)
-    raw_text: str
     page_rank_score: float = 0.0
     last_crawled_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
