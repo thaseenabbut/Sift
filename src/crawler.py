@@ -8,6 +8,7 @@ def normalize_url(url):
     parsed_url = urlparse(url)
     normalized_path = parsed_url.path.rstrip('/')
     normalized_url = f"{parsed_url.scheme}://{parsed_url.netloc}{normalized_path}{parsed_url.query}"
+    
     return normalized_url
 
 def crawl(seed_urls, max_pages=100):
@@ -18,9 +19,11 @@ def crawl(seed_urls, max_pages=100):
     allowed_domains = {
         urlparse(url).netloc for url in seed_urls
     }
+    
     queue = deque(seed_urls)
     visited = set(seed_urls)
     pages = {}
+    
     while queue and len(pages) < max_pages:
         current_url = queue.popleft()
         try:
@@ -39,6 +42,7 @@ def crawl(seed_urls, max_pages=100):
                 full_url = urljoin(current_url, href)
                 normal_url = normalize_url(full_url)
                 parsed_url = urlparse(normal_url)
+                
                 if normal_url not in visited and parsed_url.netloc in allowed_domains:
                     visited.add(normal_url)
                     queue.append(normal_url)
