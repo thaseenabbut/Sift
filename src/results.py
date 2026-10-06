@@ -34,7 +34,7 @@ async def highlighting_terms(snippet, query_terms):
         )
     return highlighted
 
-async def results(ranked_results, pages, query_terms, search_index):
+async def results(ranked_results, pages, query_terms, term_docs_lookup):
     if not ranked_results:
         print("Your search did not match any documents. Please try different keywords.")
         return
@@ -42,9 +42,9 @@ async def results(ranked_results, pages, query_terms, search_index):
     for url, score in ranked_results:
         doc = pages[url]
         positions = {
-            query.stemmed: search_index.inverted_index[query.stemmed].postings[url].positions
+            query.stemmed: term_docs_lookup[query.stemmed].postings[url].positions
             for query in query_terms
-            if query.stemmed in search_index.inverted_index and url in search_index.inverted_index[query.stemmed].postings
+            if query.stemmed in term_docs_lookup and url in term_docs_lookup[query.stemmed].postings
         }
         snippet = await generate_snippet(doc, query_terms, positions)
         highlighted_snippet = await highlighting_terms(snippet, query_terms)
