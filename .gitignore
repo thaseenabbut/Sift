@@ -35,6 +35,7 @@ data/cache/
 data/downloads/
 data/raw/
 data/processed/
+data/
 
 # Editor and operating-system files
 .DS_Store
