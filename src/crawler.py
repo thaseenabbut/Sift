@@ -3,6 +3,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from collections import deque
 from document_parser import parser
+from indexer import index_page
 
 def normalize_url(url):
     parsed_url = urlparse(url)
@@ -11,7 +12,7 @@ def normalize_url(url):
     
     return normalized_url
 
-def crawl(seed_urls, max_pages=100):
+async def crawl(seed_urls, max_pages=100):
     if isinstance(seed_urls, str):
         seed_urls = [seed_urls]
     seed_urls = [normalize_url(url) for url in seed_urls]
@@ -22,9 +23,9 @@ def crawl(seed_urls, max_pages=100):
     
     queue = deque(seed_urls)
     visited = set(seed_urls)
-    pages = {}
+    pages_crawled = 0
     
-    while queue and len(pages) < max_pages:
+    while queue and pages_crawled < max_pages:
         current_url = queue.popleft()
         try:
             headers = {
@@ -35,7 +36,9 @@ def crawl(seed_urls, max_pages=100):
             continue
         if response.status_code == 200:
             doc = parser(current_url, response.text)
-            pages[current_url] = doc
+            await doc.insert()
+            await index_page(doc)
+            pages_crawled += 1
             soup = BeautifulSoup(response.text, 'html.parser')
             for link in soup.find_all('a', href=True):
                 href = link.get('href')
@@ -46,4 +49,3 @@ def crawl(seed_urls, max_pages=100):
                 if normal_url not in visited and parsed_url.netloc in allowed_domains:
                     visited.add(normal_url)
                     queue.append(normal_url)
-    return pages

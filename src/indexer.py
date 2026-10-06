@@ -1,54 +1,52 @@
 from tokenizer import tokenize
 from stemmer import stem
+from schemas.search_index import TermDocument, IndexStats, Posting
+from schemas.page import Page
 
-
-class SearchIndex:
-    def __init__(self, inverted_index, document_length, document_frequency, avg_document_length, total_documents):
-        self.inverted_index = inverted_index
-        self.document_length = document_length
-        self.document_frequency = document_frequency
-        self.avg_document_length = avg_document_length
-        self.total_documents = total_documents
-
-    def __repr__(self):
-        return f"SearchIndex(total_documents={self.total_documents}, unique_terms={len(self.inverted_index)})"
-
-
-def index(pages):
-    inverted_index = {}
-    document_length = {}
-    document_frequency = {}
-    total_documents = len(pages)
-
-    if total_documents == 0:
-        return SearchIndex(
-            inverted_index={},
+async def index_page(page: Page):
+    url = page.url
+    words = stem(tokenize(page.clean_text))
+    doc_length = len(words)
+    
+    term_positions = {}
+    for position, word in enumerate(words):
+        if word not in term_positions:
+            term_positions[word] = []
+        term_positions[word].append(position)
+        
+    stats = await IndexStats.find_one(IndexStats.id_name == "global_stats")
+    if not stats:
+        stats = IndexStats(
             document_length={},
-            document_frequency={},
-            avg_document_length=0,
+            avg_document_length=0.0,
             total_documents=0
         )
-
-    for url, doc in pages.items():
-        words = stem(tokenize(doc.text))
-        document_length[url] = len(words)
-        for position, word in enumerate(words):
-            if word not in inverted_index:
-                inverted_index[word] = {}
-                document_frequency[word] = 0
-            if url not in inverted_index[word]:
-                inverted_index[word][url] = {"tf": 0}
-                inverted_index[word][url]["positions"] = []
-                document_frequency[word] += 1
-            inverted_index[word][url]["tf"] += 1
-            inverted_index[word][url]["positions"].append(position)
-
-    avg_document_length = sum(document_length.values()) / total_documents
-
-    return SearchIndex(
-        inverted_index=inverted_index,
-        document_length=document_length,
-        document_frequency=document_frequency,
-        avg_document_length=avg_document_length,
-        total_documents=total_documents
-    )
+        await stats.insert()
+    
+    is_new_page = url not in stats.document_length
+    
+    if not is_new_page:
+        return
+    stats.document_length[url] = doc_length
+    stats.total_documents += 1
+    total_words = sum(stats.document_length.values())
+    stats.avg_document_length = total_words / stats.total_documents
+    await stats.save()
+    
+    for word, positions in term_positions.items():
+        tf = len(positions)
+        posting = Posting(tf=tf, positions=positions)
+        
+        term_doc = await TermDocument.find_one(TermDocument.term == word)
+        
+        if not term_doc:
+            term_doc = TermDocument(
+                term=word,
+                document_frequency=1,
+                postings={url: posting}
+            )
+            await term_doc.insert()
+        else:
+            term_doc.document_frequency += 1
+            term_doc.postings[url] = posting
+            await term_doc.save()
