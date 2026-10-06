@@ -1,8 +1,8 @@
 from rich import print
 import re
 
-def generate_snippet(document, query_terms, term_positions):
-    content = document.text
+async def generate_snippet(document, query_terms, term_positions):
+    content = document.clean_text
     tokens = content.split()
     best_index = None
     snippet_length = 20
@@ -23,7 +23,7 @@ def generate_snippet(document, query_terms, term_positions):
     
     return " ".join(tokens[start:end]) + suffix
 
-def highlighting_terms(snippet, query_terms):
+async def highlighting_terms(snippet, query_terms):
     highlighted = snippet
     for term in query_terms:
         term = term.original
@@ -34,7 +34,7 @@ def highlighting_terms(snippet, query_terms):
         )
     return highlighted
 
-def results(ranked_results, pages, query_terms, search_index):
+async def results(ranked_results, pages, query_terms, search_index):
     if not ranked_results:
         print("Your search did not match any documents. Please try different keywords.")
         return
@@ -42,12 +42,12 @@ def results(ranked_results, pages, query_terms, search_index):
     for url, score in ranked_results:
         doc = pages[url]
         positions = {
-            query.stemmed: search_index.inverted_index[query.stemmed][url]["positions"]
+            query.stemmed: search_index.inverted_index[query.stemmed].postings[url].positions
             for query in query_terms
-            if query.stemmed in search_index.inverted_index  and url in search_index.inverted_index[query.stemmed]
+            if query.stemmed in search_index.inverted_index and url in search_index.inverted_index[query.stemmed].postings
         }
-        snippet = generate_snippet(doc, query_terms, positions)
-        highlighted_snippet = highlighting_terms(snippet, query_terms)
+        snippet = await generate_snippet(doc, query_terms, positions)
+        highlighted_snippet = await highlighting_terms(snippet, query_terms)
         print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
         print(f"[dim]{highlighted_snippet}[/dim]")
         print("\n")

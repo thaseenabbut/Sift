@@ -1,72 +1,68 @@
 from urllib.parse import urlparse
 
-def retrieve(parsed_query, search_index):
-    inverted_index = search_index.inverted_index
+def retrieve(parsed_query, term_docs_lookup):
     candidates = set()
     for term in [term.stemmed for term in parsed_query.terms]:
-        if term in inverted_index:
-            candidates.update(inverted_index[term].keys())
+        if term in term_docs_lookup:
+            candidates.update(term_docs_lookup[term].postings.keys())
     for phrase_terms in parsed_query.phrases:
         for term in [term.stemmed for term in phrase_terms]:
-            if term in inverted_index:
-                candidates.update(inverted_index[term].keys())
+            if term in term_docs_lookup:
+                candidates.update(term_docs_lookup[term].postings.keys())
     for term in [term.stemmed for term in parsed_query.intitle]:
-        if term in inverted_index:
-            candidates.update(inverted_index[term].keys())
+        if term in term_docs_lookup:
+            candidates.update(term_docs_lookup[term].postings.keys())
     for term in [term.stemmed for term in parsed_query.inurl]:
-        if term in inverted_index:
-            candidates.update(inverted_index[term].keys())
+        if term in term_docs_lookup:
+            candidates.update(term_docs_lookup[term].postings.keys())
     for term in [term.stemmed for term in parsed_query.related]:
-        if term in inverted_index:
-            candidates.update(inverted_index[term].keys())
+        if term in term_docs_lookup:
+            candidates.update(term_docs_lookup[term].postings.keys())
     for term in [term.stemmed for term in parsed_query.required]:
-        if term in inverted_index:
-            candidates &= set(inverted_index[term].keys())
+        if term in term_docs_lookup:
+            candidates &= set(term_docs_lookup[term].postings.keys())
         else:
             return set()
     return candidates
 
-
-def phrase_search(query_terms, document_id, search_index):
+def phrase_search(query_terms, document_id, term_docs_lookup, stats):
     if not query_terms:
         return False
-    if document_id not in search_index.document_length:
+    if document_id not in stats.document_length:
         return False
 
     for term in query_terms:
         stemmed_term = term.stemmed
-        if stemmed_term not in search_index.inverted_index or document_id not in search_index.inverted_index[stemmed_term]:
+        if stemmed_term not in term_docs_lookup or document_id not in term_docs_lookup[stemmed_term].postings:
             return False
 
     first_term = query_terms[0].stemmed
-    candidate_positions = search_index.inverted_index[first_term][document_id]["positions"]
+    candidate_positions = term_docs_lookup[first_term].postings[document_id].positions
 
     for i in range(1, len(query_terms)):
         stemmed_term = query_terms[i].stemmed
-        term_positions = set(search_index.inverted_index[stemmed_term][document_id]["positions"])
+        term_positions = set(term_docs_lookup[stemmed_term].postings[document_id].positions)
         candidate_positions = [pos for pos in candidate_positions if (pos + i) in term_positions]
         if not candidate_positions:
             return False
 
     return True
 
-def apply_operators(parsed_query, relevant_docs, search_index, pages):
+def apply_operators(parsed_query, relevant_docs, term_docs_lookup, pages):
     filtered = set(relevant_docs)
 
-    for phrase_terms in parsed_query.phrases:
-        filtered = {
-            doc_id for doc_id in filtered
-            if phrase_search(phrase_terms, doc_id, search_index)
-        }
+    # Note: Phrase search is now applied in search.py directly, 
+    # so we don't need to re-apply it here inside apply_operators unless we pass stats.
+    # We removed it from here to keep it simple.
 
     for term in [term.stemmed for term in parsed_query.excluded]:
-        if term in search_index.inverted_index:
-            excluded_docs = set(search_index.inverted_index[term].keys())
+        if term in term_docs_lookup:
+            excluded_docs = set(term_docs_lookup[term].postings.keys())
             filtered -= excluded_docs
 
     for term in [term.stemmed for term in parsed_query.required]:
-        if term in search_index.inverted_index:
-            required_docs = set(search_index.inverted_index[term].keys())
+        if term in term_docs_lookup:
+            required_docs = set(term_docs_lookup[term].postings.keys())
             filtered &= required_docs
         else:
             return set()
