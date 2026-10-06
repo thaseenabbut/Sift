@@ -42,7 +42,10 @@ def phrase_search(query_terms, document_id, term_docs_lookup, stats):
     for i in range(1, len(query_terms)):
         stemmed_term = query_terms[i].stemmed
         term_positions = set(term_docs_lookup[stemmed_term].postings[document_id].positions)
-        candidate_positions = [pos for pos in candidate_positions if (pos + i) in term_positions]
+        candidate_positions = [
+            pos for pos in candidate_positions
+            if (pos + i) in term_positions
+        ]
         if not candidate_positions:
             return False
 
