@@ -8,9 +8,12 @@ from src.crawler import crawl
 from src.search import search
 from src.ranker import bm25_parameters
 from rich import print
+from rich.console import Console
 
 from storage.mongodb import db_manager
 from schemas.search_index import IndexStats
+
+console = Console()
 
 async def main():
     await db_manager.connect_and_init()
@@ -35,6 +38,7 @@ async def main():
         await crawl(seed_urls, max_pages=20)
     
     print("Sift Search Engine is ready!")
+    print("It took [bold green]{}[/bold green] seconds to crawl and index the pages.".format(stats.total_documents if stats else 0))
     print("Type 'exit' or 'quit' to stop.")
     
     while True:
@@ -53,7 +57,7 @@ async def main():
         except EOFError:
             break
         except Exception as e:
-            print(f"[bold red]An error occurred:[/bold red] {e}")
+            console.print_exception()
             
     await db_manager.close_connection()
 
