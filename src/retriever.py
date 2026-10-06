@@ -51,10 +51,6 @@ def phrase_search(query_terms, document_id, term_docs_lookup, stats):
 def apply_operators(parsed_query, relevant_docs, term_docs_lookup, pages):
     filtered = set(relevant_docs)
 
-    # Note: Phrase search is now applied in search.py directly, 
-    # so we don't need to re-apply it here inside apply_operators unless we pass stats.
-    # We removed it from here to keep it simple.
-
     for term in [term.stemmed for term in parsed_query.excluded]:
         if term in term_docs_lookup:
             excluded_docs = set(term_docs_lookup[term].postings.keys())
