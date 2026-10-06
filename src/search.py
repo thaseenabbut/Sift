@@ -7,7 +7,6 @@ from schemas.search_index import TermDocument, IndexStats
 from schemas.page import Page
 
 async def search(query, bm25_parameters):
-    # Fetch global stats
     stats = await IndexStats.find_one(IndexStats.id_name == "global_stats")
     if not stats:
         print("Search index stats not found. Have you crawled and indexed yet?")
@@ -16,7 +15,6 @@ async def search(query, bm25_parameters):
     scored_docs = []
     parsed = parse_query(query)
     
-    # Collect all unique terms from the parsed query
     all_stemmed_terms = set()
     all_stemmed_terms.update([t.stemmed for t in parsed.terms])
     for phrase in parsed.phrases:
@@ -27,18 +25,14 @@ async def search(query, bm25_parameters):
     all_stemmed_terms.update([t.stemmed for t in parsed.required])
     all_stemmed_terms.update([t.stemmed for t in parsed.excluded])
     
-    # Fetch only the relevant terms from MongoDB
     term_docs_list = await TermDocument.find({"term": {"$in": list(all_stemmed_terms)}}).to_list()
     term_docs_lookup = {td.term: td for td in term_docs_list}
     
-    # Retrieve relevant URLs
     relevant_docs = retrieve(parsed, term_docs_lookup)
     
-    # Fetch relevant Page documents from MongoDB
     relevant_pages_list = await Page.find({"url": {"$in": list(relevant_docs)}}).to_list()
     pages_lookup = {page.url: page for page in relevant_pages_list}
 
-    # Apply operators
     relevant_docs = apply_operators(parsed, relevant_docs, term_docs_lookup, pages_lookup)
     
     if parsed.phrases:
@@ -50,7 +44,6 @@ async def search(query, bm25_parameters):
                 )
             }
 
-    # Rank documents
     for doc_id in relevant_docs:
         ranking_terms = parsed.terms + parsed.required
         score = await score_document(
