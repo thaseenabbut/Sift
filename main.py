@@ -10,10 +10,15 @@ from src.ranker import bm25_parameters
 from rich import print
 
 from storage.mongodb import db_manager
+from schemas.search_index import IndexStats
 
 async def main():
     await db_manager.connect_and_init()
+    stats = await IndexStats.find_one(
+    IndexStats.id_name == "global_stats"
+)
 
+    
     seed_urls = [
         "https://en.wikipedia.org/wiki/Python_(programming_language)",
         "https://en.wikipedia.org/wiki/JavaScript",
@@ -22,8 +27,12 @@ async def main():
         "https://en.wikipedia.org/wiki/Search_engine",
     ]
     
-    print("Crawling and indexing pages...")
-    await crawl(seed_urls, max_pages=20)
+    if stats and stats.total_documents > 0:
+        print("Existing index found.")
+    else:
+        print("No index found. Starting initial crawl...")
+        print("Crawling and indexing pages...")
+        await crawl(seed_urls, max_pages=20)
     
     print("Sift Search Engine is ready!")
     print("Type 'exit' or 'quit' to stop.")
