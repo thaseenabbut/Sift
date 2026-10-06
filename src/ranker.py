@@ -5,19 +5,19 @@ bm25_parameters = {
     "b": 0.75
 }
 
-def calculate_idf(term, search_index):
-    df = search_index.document_frequency.get(term, 0)
-    n = search_index.total_documents
+def calculate_idf(term, term_lookup, stats):
+    df = term_lookup[term].document_frequency
+    n = stats.total_documents
     idf = math.log((n - df + 0.5) / (df + 0.5) + 1)
     return idf
 
-def calculate_bm25(term, document_id, search_index, bm25_parameters):
-    tf = search_index.inverted_index[term].postings[document_id].tf
-    idf = calculate_idf(term, search_index)
+def calculate_bm25(term, document_id, term_lookup, stats, bm25_parameters):
+    tf = term_lookup[term].postings[document_id].tf
+    idf = calculate_idf(term, term_lookup, stats)
     k1 = bm25_parameters["k1"]
     b = bm25_parameters["b"]
-    dl = search_index.document_length[document_id]
-    avg_dl = search_index.avg_document_length
+    dl = stats.document_length[document_id]
+    avg_dl = stats.avg_document_length
     numerator = tf * (k1 + 1)
     denominator = tf + k1 * (1 - b + b * dl / avg_dl)
     return idf * (numerator / denominator)
@@ -27,5 +27,5 @@ async def score_document(query_terms, document_id, term_lookup, stats, bm25_para
     for term in query_terms:
         stemmed_term = term.stemmed
         if stemmed_term in term_lookup and document_id in term_lookup[stemmed_term].postings:
-            score += calculate_bm25(stemmed_term, document_id, term_lookup, bm25_parameters)
+            score += calculate_bm25(stemmed_term, document_id, term_lookup, stats, bm25_parameters)
     return score
