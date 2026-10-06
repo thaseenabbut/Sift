@@ -5,7 +5,6 @@ import asyncio
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from crawler import crawl
-from indexer import index
 from search import search
 from ranker import bm25_parameters
 from rich import print
@@ -23,11 +22,8 @@ async def main():
         "https://en.wikipedia.org/wiki/Search_engine",
     ]
     
-    print("Crawling pages...")
-    pages = crawl(seed_urls, max_pages=20)
-    
-    print(f"Indexing {len(pages)} pages...")
-    search_index = index(pages)
+    print("Crawling and indexing pages...")
+    await crawl(seed_urls, max_pages=20)
     
     print("Sift Search Engine is ready!")
     print("Type 'exit' or 'quit' to stop.")
@@ -40,7 +36,7 @@ async def main():
             if not query:
                 continue
                 
-            search(query, search_index, bm25_parameters, pages)
+            await search(query, bm25_parameters)
             
         except KeyboardInterrupt:
             print("[bold red]Exiting...[/bold red]")
