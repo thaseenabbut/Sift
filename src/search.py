@@ -3,32 +3,64 @@ from query_parser import parse_query
 from retriever import retrieve, apply_operators
 from ranker import score_document
 from results import results
+from schemas.search_index import TermDocument, IndexStats
+from schemas.page import Page
 
-def search(query, search_index, bm25_parameters, pages):
+async def search(query, bm25_parameters):
+    # Fetch global stats
+    stats = await IndexStats.find_one(IndexStats.id_name == "global_stats")
+    if not stats:
+        print("Search index stats not found. Have you crawled and indexed yet?")
+        return
+
     scored_docs = []
-
     parsed = parse_query(query)
-    relevant_docs = retrieve(parsed, search_index)
-    relevant_docs = apply_operators(parsed, relevant_docs, search_index, pages)
+    
+    # Collect all unique terms from the parsed query
+    all_stemmed_terms = set()
+    all_stemmed_terms.update([t.stemmed for t in parsed.terms])
+    for phrase in parsed.phrases:
+        all_stemmed_terms.update([t.stemmed for t in phrase])
+    all_stemmed_terms.update([t.stemmed for t in parsed.intitle])
+    all_stemmed_terms.update([t.stemmed for t in parsed.inurl])
+    all_stemmed_terms.update([t.stemmed for t in parsed.related])
+    all_stemmed_terms.update([t.stemmed for t in parsed.required])
+    all_stemmed_terms.update([t.stemmed for t in parsed.excluded])
+    
+    # Fetch only the relevant terms from MongoDB
+    term_docs_list = await TermDocument.find({"term": {"$in": list(all_stemmed_terms)}}).to_list()
+    term_docs_lookup = {td.term: td for td in term_docs_list}
+    
+    # Retrieve relevant URLs
+    relevant_docs = retrieve(parsed, term_docs_lookup)
+    
+    # Fetch relevant Page documents from MongoDB
+    relevant_pages_list = await Page.find({"url": {"$in": list(relevant_docs)}}).to_list()
+    pages_lookup = {page.url: page for page in relevant_pages_list}
+
+    # Apply operators
+    relevant_docs = apply_operators(parsed, relevant_docs, term_docs_lookup, pages_lookup)
     
     if parsed.phrases:
         relevant_docs = {
             doc_id 
             for doc_id in relevant_docs
             if all(
-                phrase_search(phrase, doc_id, search_index) for phrase in parsed.phrases
+                phrase_search(phrase, doc_id, term_docs_lookup, stats) for phrase in parsed.phrases
                 )
             }
 
+    # Rank documents
     for doc_id in relevant_docs:
         ranking_terms = parsed.terms + parsed.required
-        score = score_document(
+        score = await score_document(
             ranking_terms,
             doc_id, 
-            search_index, 
+            term_docs_lookup, 
+            stats,
             bm25_parameters
         )
         scored_docs.append((doc_id, score))
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    return results(scored_docs, pages, parsed.terms + parsed.required, search_index)
+    await results(scored_docs, pages_lookup, parsed.terms + parsed.required, term_docs_lookup)
