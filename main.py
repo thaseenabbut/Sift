@@ -34,8 +34,8 @@ async def main():
         print("Existing index found.")
     else:
         print("No index found. Starting initial crawl...")
-        print("Crawling and indexing pages...")
-        await crawl(seed_urls, max_pages=20)
+        with console.status("[bold green]Crawling and indexing pages...[/bold green]", spinner="dots"):
+            await crawl(seed_urls, max_pages=20)
     
     print("Sift Search Engine is ready!")
     print("It took [bold green]{}[/bold green] seconds to crawl and index the pages.".format(stats.total_documents if stats else 0))
