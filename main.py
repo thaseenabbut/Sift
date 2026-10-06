@@ -4,9 +4,9 @@ import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from crawler import crawl
-from search import search
-from ranker import bm25_parameters
+from src.crawler import crawl
+from src.search import search
+from src.ranker import bm25_parameters
 from rich import print
 
 from storage.mongodb import db_manager
