@@ -33,12 +33,7 @@ async def index_page(page: Page):
     total_words = sum(stats.document_length.values())
     stats.avg_document_length = total_words / stats.total_documents
     await stats.save()
-    
-    # Build all upsert operations and execute in a single bulk_write round trip.
-    # Uses an aggregation pipeline update so we can:
-    #   1. Remove any existing posting for this URL (idempotent re-index)
-    #   2. Append the new posting to the array
-    #   3. Recompute document_frequency from the resulting array length
+
     bulk_ops = []
     for word, positions in term_positions.items():
         tf = len(positions)
@@ -50,7 +45,6 @@ async def index_page(page: Page):
                     {
                         "$set": {
                             "term": {"$ifNull": ["$term", word]},
-                            # Filter out any existing posting for this URL, then append the new one.
                             "postings": {
                                 "$concatArrays": [
                                     {
@@ -64,7 +58,6 @@ async def index_page(page: Page):
                             },
                         }
                     },
-                    # Derive document_frequency from the postings array length.
                     {"$set": {"document_frequency": {"$size": "$postings"}}},
                 ],
                 upsert=True,
