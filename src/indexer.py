@@ -2,18 +2,19 @@ from tokenizer import tokenize
 from stemmer import stem
 from schemas.search_index import TermDocument, IndexStats, Posting
 from schemas.page import Page
+from pymongo import UpdateOne
 
 async def index_page(page: Page):
     url = page.url
     words = stem(tokenize(page.clean_text))
     doc_length = len(words)
-    
     term_positions = {}
+    
     for position, word in enumerate(words):
         if word not in term_positions:
             term_positions[word] = []
         term_positions[word].append(position)
-        
+    
     stats = await IndexStats.find_one(IndexStats.id_name == "global_stats")
     if not stats:
         stats = IndexStats(
@@ -33,20 +34,43 @@ async def index_page(page: Page):
     stats.avg_document_length = total_words / stats.total_documents
     await stats.save()
     
+    # Build all upsert operations and execute in a single bulk_write round trip.
+    # Uses an aggregation pipeline update so we can:
+    #   1. Remove any existing posting for this URL (idempotent re-index)
+    #   2. Append the new posting to the array
+    #   3. Recompute document_frequency from the resulting array length
+    bulk_ops = []
     for word, positions in term_positions.items():
         tf = len(positions)
-        posting = Posting(tf=tf, positions=positions)
-        
-        term_doc = await TermDocument.find_one(TermDocument.term == word)
-        
-        if not term_doc:
-            term_doc = TermDocument(
-                term=word,
-                document_frequency=1,
-                postings={url: posting}
+        posting_doc = Posting(url=url, tf=tf, positions=positions).model_dump()
+        bulk_ops.append(
+            UpdateOne(
+                {"term": word},
+                [
+                    {
+                        "$set": {
+                            "term": {"$ifNull": ["$term", word]},
+                            # Filter out any existing posting for this URL, then append the new one.
+                            "postings": {
+                                "$concatArrays": [
+                                    {
+                                        "$filter": {
+                                            "input": {"$ifNull": ["$postings", []]},
+                                            "cond": {"$ne": ["$$this.url", url]},
+                                        }
+                                    },
+                                    [posting_doc],
+                                ]
+                            },
+                        }
+                    },
+                    # Derive document_frequency from the postings array length.
+                    {"$set": {"document_frequency": {"$size": "$postings"}}},
+                ],
+                upsert=True,
             )
-            await term_doc.insert()
-        else:
-            term_doc.document_frequency += 1
-            term_doc.postings[url] = posting
-            await term_doc.save()
+        )
+
+    if bulk_ops:
+        collection = TermDocument.get_pymongo_collection()
+        await collection.bulk_write(bulk_ops, ordered=False)
