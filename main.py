@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.crawler import crawl
 from src.search import search
 from src.ranker import bm25_parameters
+
 from rich import print
 from rich.console import Console
 
@@ -38,7 +39,6 @@ async def main():
             await crawl(seed_urls, max_pages=20)
     
     print("Sift Search Engine is ready!")
-    print("It took [bold green]{}[/bold green] seconds to crawl and index the pages.".format(stats.total_documents if stats else 0))
     print("Type 'exit' or 'quit' to stop.")
     
     while True:
