@@ -12,7 +12,7 @@ def calculate_idf(term, term_lookup, stats):
     return idf
 
 def calculate_bm25(term, document_id, term_lookup, stats, bm25_parameters):
-    tf = term_lookup[term].postings[document_id].tf
+    tf = term_lookup[term].postings_by_url[document_id].tf
     idf = calculate_idf(term, term_lookup, stats)
     k1 = bm25_parameters["k1"]
     b = bm25_parameters["b"]
@@ -26,6 +26,6 @@ async def score_document(query_terms, document_id, term_lookup, stats, bm25_para
     score = 0.0
     for term in query_terms:
         stemmed_term = term.stemmed
-        if stemmed_term in term_lookup and document_id in term_lookup[stemmed_term].postings:
+        if stemmed_term in term_lookup and document_id in term_lookup[stemmed_term].postings_by_url:
             score += calculate_bm25(stemmed_term, document_id, term_lookup, stats, bm25_parameters)
     return score

@@ -42,9 +42,9 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup):
     for url, score in ranked_results:
         doc = pages[url]
         positions = {
-            query.stemmed: term_docs_lookup[query.stemmed].postings[url].positions
+            query.stemmed: term_docs_lookup[query.stemmed].postings_by_url[url].positions
             for query in query_terms
-            if query.stemmed in term_docs_lookup and url in term_docs_lookup[query.stemmed].postings
+            if query.stemmed in term_docs_lookup and url in term_docs_lookup[query.stemmed].postings_by_url
         }
         snippet = await generate_snippet(doc, query_terms, positions)
         highlighted_snippet = await highlighting_terms(snippet, query_terms)
