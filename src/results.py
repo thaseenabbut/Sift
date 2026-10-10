@@ -29,7 +29,7 @@ async def highlighting_terms(snippet, query_terms):
         term = term.original
         highlighted = re.sub(
             rf"(?i)({re.escape(term)})",
-            r"[bold red]\1[/bold red]",
+            r"[bold yellow]\1[/bold yellow]",
             highlighted
         )
     return highlighted
