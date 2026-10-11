@@ -1,13 +1,22 @@
 from datetime import datetime, timezone
 
 import requests
+from requests.adapters import HTTPAdapter
 from urllib.parse import urljoin, urlparse
+import urllib.robotparser
+from urllib3.util import retry
 from bs4 import BeautifulSoup
 from collections import deque
+
 from document_parser import parser
 from indexer import index_page
+
 from schemas.search_index import IndexStats
 from schemas.page import Page
+
+ROBOTS_USER_AGENT = "SiftBot"
+
+ROBOTS_CACHE = {}
 
 def normalize_url(url):
     parsed_url = urlparse(url)
@@ -18,6 +27,42 @@ def normalize_url(url):
         f"{normalized_path}"
         f"{'?' + parsed_url.query if parsed_url.query else ''}"
     )
+    
+def allowed_to_fetch(url):
+    parsed_url = urlparse(url)
+    origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    if origin not in ROBOTS_CACHE:
+        robots_url = f"{origin}/robots.txt"
+
+        try:
+            response = requests.get(
+                robots_url,
+                headers={"User-Agent": ROBOTS_USER_AGENT},
+                timeout=5,
+            )
+        except requests.RequestException:
+            ROBOTS_CACHE[origin] = None
+            return False
+
+        rp = urllib.robotparser.RobotFileParser()
+        rp.set_url(robots_url)
+
+        if response.status_code == 200:
+            rp.parse(response.text.splitlines())
+        elif 400 <= response.status_code < 500:
+            rp.parse([])
+        else:
+            ROBOTS_CACHE[origin] = None
+            return False
+        ROBOTS_CACHE[origin] = rp
+
+    rp = ROBOTS_CACHE[origin]
+
+    if rp is None:
+        return False
+
+    return rp.can_fetch(ROBOTS_USER_AGENT, url)
 
 async def already_indexed_urls():
     indexed = set()
@@ -52,6 +97,29 @@ async def persist_crawled_page(url, html, refresh_existing):
     await index_page(parsed)
     return True
 
+def retry_request(url, retries=3):
+    headers = {
+        "User-Agent": ROBOTS_USER_AGENT
+    }
+
+    retry_strategy = retry.Retry(
+        total=retries,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+
+    with requests.Session() as session:
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+
+        try:
+            return session.get(url, headers=headers, timeout=5)
+        except requests.RequestException:
+            return None
+
 async def crawl(seed_urls, max_pages=100, refresh_existing=False):
     if isinstance(seed_urls, str):
         seed_urls = [seed_urls]
@@ -76,29 +144,35 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
     
     while queue and pages_crawled < max_pages:
         current_url = queue.popleft()
-        try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-               }
-            response = requests.get(current_url, headers=headers, timeout=5)
-        except requests.RequestException:
+        
+        if not allowed_to_fetch(current_url):
             continue
-        if response.status_code == 200:
-            stored = await persist_crawled_page(
-                current_url, response.text, refresh_existing
-            )
-            if not stored:
-                continue
-            pages_crawled += 1
-            soup = BeautifulSoup(response.text, 'html.parser')
-            for link in soup.find_all('a', href=True):
-                href = link.get('href')
-                full_url = urljoin(current_url, href)
-                normal_url = normalize_url(full_url)
-                parsed_url = urlparse(normal_url)
+        response = retry_request(current_url)
+
+        if response is None:
+            continue
+        
+        if response.status_code != 200:
+            continue
+
+        stored = await persist_crawled_page(
+            current_url, response.text, refresh_existing
+        )
+
+        if not stored:
+            continue
+        
+        pages_crawled += 1
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        for link in soup.find_all('a', href=True):
+            href = link.get('href')
+            full_url = urljoin(current_url, href)
+            normal_url = normalize_url(full_url)
+            parsed_url = urlparse(normal_url)
                 
-                if normal_url not in visited and parsed_url.netloc in allowed_domains:
-                    visited.add(normal_url)
-                    queue.append(normal_url)
+            if normal_url not in visited and parsed_url.netloc in allowed_domains:
+                visited.add(normal_url)
+                queue.append(normal_url)
 
     return pages_crawled
