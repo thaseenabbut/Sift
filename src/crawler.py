@@ -7,6 +7,7 @@ import urllib.robotparser
 from urllib3.util import retry
 from bs4 import BeautifulSoup
 from collections import deque
+from rich import print
 
 from document_parser import parser
 from indexer import index_page
@@ -147,12 +148,19 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
         
         if not allowed_to_fetch(current_url):
             continue
+
+        print(f"[bold blue][SiftBot][/bold blue] Crawling: {current_url}")
         response = retry_request(current_url)
 
         if response is None:
+            print(f"[bold red][SiftBot][/bold red] Failed to crawl: {current_url}")
             continue
         
         if response.status_code != 200:
+            print(
+                f"[bold yellow][SiftBot][/bold yellow] Skipped ({response.status_code}): "
+                f"{current_url}"
+            )  
             continue
 
         stored = await persist_crawled_page(
@@ -163,6 +171,7 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
             continue
         
         pages_crawled += 1
+        print(f"[bold blue][SiftBot][/bold blue] Indexed: {current_url}")
         soup = BeautifulSoup(response.text, 'html.parser')
         
         for link in soup.find_all('a', href=True):
