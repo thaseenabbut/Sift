@@ -49,7 +49,7 @@ async def main(refresh_existing=False):
     ]
 
     if stats and stats.total_documents > 0:
-        print("[bold yellow][INDEXED][/bold yellow] Existing index found.")
+        print("Existing index found.")
 
     if refresh_existing:
         urls_to_crawl = seed_urls
