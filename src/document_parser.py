@@ -1,6 +1,6 @@
+import hashlib
 from bs4 import BeautifulSoup
 from schemas.page import Page
-
 
 def parser(url, html):
     soup = BeautifulSoup(html, "html.parser")
@@ -13,3 +13,6 @@ def parser(url, html):
     clean_text = soup.get_text(separator=" ", strip=True)
 
     return Page(url=url, title=title, clean_text=clean_text)
+
+def calculate_content_hash(clean_text):
+    return hashlib.sha256(clean_text.encode("utf-8")).hexdigest()

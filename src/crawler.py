@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from collections import deque
 from rich import print
 
-from document_parser import parser
+from document_parser import parser, calculate_content_hash
 from indexer import index_page
 
 from schemas.search_index import IndexStats
@@ -77,10 +77,16 @@ async def already_indexed_urls():
 
 async def persist_crawled_page(url, html, refresh_existing):
     parsed = parser(url, html)
+    new_hash = calculate_content_hash(parsed.clean_text)
+    parsed.content_hash = new_hash
 
     existing = await Page.find_one(Page.url == url)
 
     if existing is not None:
+        
+        if existing.content_hash == new_hash:
+            return False
+
         if not refresh_existing:
             return False
 
@@ -88,6 +94,7 @@ async def persist_crawled_page(url, html, refresh_existing):
         existing.meta_description = parsed.meta_description
         existing.clean_text = parsed.clean_text
         existing.h1_headers = parsed.h1_headers
+        existing.content_hash = new_hash
         existing.last_crawled_at = datetime.now(timezone.utc)
 
         await existing.save()
