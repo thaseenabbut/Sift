@@ -7,7 +7,7 @@ from schemas.search_index import TermDocument, IndexStats
 from schemas.page import Page
 
 async def search(query, bm25_parameters):
-    stats = await IndexStats.find_one(IndexStats.id_name == "global_stats")
+    stats = await IndexStats.find_one({"id_name": "global_stats"})
     if not stats:
         print("Search index stats not found. Have you crawled and indexed yet?")
         return
