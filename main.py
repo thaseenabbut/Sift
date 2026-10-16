@@ -28,9 +28,7 @@ def parse_args():
 
 async def main(refresh_existing=False):
     await db_manager.connect_and_init()
-    stats = await IndexStats.find_one(
-    IndexStats.id_name == "global_stats"
-)
+    stats = await IndexStats.find_one({"id_name": "global_stats"})
 
     
     seed_urls = [
