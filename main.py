@@ -38,6 +38,7 @@ async def main(refresh_existing=False):
         "https://en.wikipedia.org/wiki/Software_engineering",
         "https://en.wikipedia.org/wiki/Search_engine",
         "https://thaseenabbut.github.io/LazaBot-Legal/",
+        "apple.com",
     ]
     
     indexed_urls = await already_indexed_urls()
