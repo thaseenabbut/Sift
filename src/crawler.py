@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import requests
+import tldextract
 from requests.adapters import HTTPAdapter
 from urllib.parse import unquote_plus, urljoin, urlsplit, urlunsplit
 import urllib.robotparser
@@ -30,14 +31,25 @@ TRACKING_QUERY_PARAMETER_PREFIXES = ("utm_",)
 TRACKING_QUERY_PARAMETERS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
 
 
-def _is_tracking_query_parameter(part):
+def is_tracking_query_parameter(part):
     key = unquote_plus(part.partition("=")[0]).lower()
     return key.startswith(TRACKING_QUERY_PARAMETER_PREFIXES) or key in TRACKING_QUERY_PARAMETERS
 
 
 def normalize_url(url):
-    if not isinstance(url, str) or not url or url != url.strip() or any(char.isspace() for char in url):
+    if not isinstance(url, str):
         return None
+    
+    url = url.strip()
+    
+    if not url:
+        return None
+    
+    if " " in url:
+        return None
+
+    if "://" not in url:
+        url = "https://" + url
 
     try:
         parsed_url = urlsplit(url)
@@ -65,10 +77,19 @@ def normalize_url(url):
     path = parsed_url.path or "/"
     query_parts = [
         part for part in parsed_url.query.split("&")
-        if not _is_tracking_query_parameter(part)
+        if not is_tracking_query_parameter(part)
     ]
     query = "&".join(query_parts)
     return urlunsplit((scheme, hostname, path, query, ""))
+
+def get_allowed_scopes(url):
+    extracted = tldextract.extract(url)
+    return extracted.registered_domain
+
+
+def is_domain_allowed(hostname, allowed_registered_domains):
+    extracted = tldextract.extract(hostname)
+    return extracted.registered_domain in allowed_registered_domains
 
 
 def canonical_url_from_html(html, page_url, allowed_domains):
@@ -95,7 +116,7 @@ def canonical_url_from_html(html, page_url, allowed_domains):
     canonical_parts = urlsplit(canonical_url)
     if canonical_parts.hostname != page_parts.hostname:
         return None
-    if canonical_parts.netloc not in allowed_domains:
+    if not is_domain_allowed(canonical_parts.hostname, allowed_domains):
         return None
     return canonical_url
     
@@ -142,8 +163,6 @@ async def already_indexed_urls():
         indexed.update(stats.document_length.keys())
     pages = await Page.find_all().to_list()
     indexed.update(page.url for page in pages)
-    # Legacy records may predate the normalization policy. Treat their
-    # normalized spellings as seen so a refresh does not create a duplicate.
     indexed.update(
         normalized for url in tuple(indexed)
         if (normalized := normalize_url(url)) is not None
@@ -164,9 +183,6 @@ async def persist_crawled_page(url, html, refresh_existing):
     if existing is not None:
         
         if existing.content_hash == new_hash:
-            # A failed prior migration can leave a valid Page without its
-            # index entry. Repair it on the next crawl instead of silently
-            # treating it as complete.
             stats = await ensure_stats()
             if url not in stats.document_length:
                 await index_page(existing)
@@ -247,11 +263,6 @@ async def persist_permanent_redirect(source_url, destination_url, html):
 
 
 async def reconcile_canonical_alias(requested_url, effective_url, canonical_url):
-    """Remove indexed aliases when their safe canonical page already exists.
-
-    A canonical declaration never creates a Page at a URL we have not fetched.
-    That avoids writing response content under an unverified target URL.
-    """
     target = await Page.find_one({"url": canonical_url})
     if target is None:
         return False
@@ -303,10 +314,11 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
         seed_urls = [seed_urls]
     seed_urls = [normalized for url in seed_urls if (normalized := normalize_url(url))]
     if not seed_urls:
+        print("[bold red][SiftBot][/bold red] No valid seed URLs provided.")
         return 0
 
     allowed_domains = {
-        urlsplit(url).netloc for url in seed_urls
+        tldextract.extract(url).registered_domain for url in seed_urls
     }
     
     indexed = await already_indexed_urls()
@@ -343,7 +355,7 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
             print(f"\n[bold yellow][SiftBot][/bold yellow] Skipped malformed final URL: {current_url}")
             continue
 
-        if urlsplit(final_url).netloc not in allowed_domains:
+        if not is_domain_allowed(urlsplit(final_url).hostname, allowed_domains):
             print(f"\n[bold yellow][SiftBot][/bold yellow] Skipped redirect outside allowed domains: {final_url}")
             continue
         
@@ -407,7 +419,7 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
                 continue
             parsed_url = urlsplit(normal_url)
                 
-            if normal_url not in visited and parsed_url.netloc in allowed_domains:
+            if normal_url not in visited and is_domain_allowed(parsed_url.hostname, allowed_domains):
                 visited.add(normal_url)
                 queue.append(normal_url)
 
