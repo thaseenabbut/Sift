@@ -18,6 +18,10 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "License :: OSI Approved :: MIT License",
 ]
+dependencies = [
+  "fastapi>=0.100.0",
+  "uvicorn[standard]>=0.20.0",
+]
 
 [tool.setuptools]
 packages = ["src"]
