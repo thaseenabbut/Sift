@@ -7,10 +7,16 @@ BM25 ranking. The index is persisted to MongoDB via Beanie (an async ODM).
 ## Project structure
 
 ```text
-main.py                  Application entry point
+main.py                  Application entry point (CLI)
+app.py                   FastAPI server entry point
 src/
+  api/                   FastAPI package
+    __init__.py          Package initialization
+    routes.py            HTTP route definitions
+    schemas.py           Pydantic request and response models
   crawler.py             Document discovery and retrieval
   document_parser.py     Content extraction
+  index_integrity.py     Index health checks and repair
   tokenizer.py           Text normalisation and tokenisation
   stemmer.py             Word stemming
   indexer.py             Inverted-index construction
@@ -46,6 +52,8 @@ data/                    Local, generated application data (git-ignored)
 - Result snippets
 - Query-term highlighting
 - Persistent storage using MongoDB and Beanie
+- Search index integrity checking and automated repair
+- FastAPI REST API with interactive documentation (`/docs`)
 
 ## Getting started
 
@@ -81,7 +89,7 @@ MONGO_URI=mongodb://localhost:27017
 DATABASE_NAME=sift
 ```
 
-### 4. Run
+### 4. Run CLI
 
 ```bash
 python main.py
@@ -90,6 +98,22 @@ python main.py
 The application connects to MongoDB, crawls the configured seed pages, builds the search index, and enters an interactive command-line search loop.
 
 Type `exit` or `quit` (or press `Ctrl-C`) to stop.
+
+### 5. Run FastAPI Server
+
+```bash
+python app.py
+```
+
+Or directly with `uvicorn`:
+
+```bash
+uvicorn app:app --reload
+```
+
+- **Root endpoint**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+- **Interactive docs (Swagger UI)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Alternative docs (ReDoc)**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ## Query syntax
 
@@ -136,7 +160,7 @@ The search index is persisted so that search data can be reused instead of rebui
 
 ## Development
 
-Keep reusable application logic in `src/` and use `main.py` only to wire the command-line interface to the application logic.
+Keep reusable application logic in `src/`. Use `main.py` to wire the command-line interface and `app.py` with `src/api/` to expose the HTTP API.
 
 Data schemas live in `schemas/`, while MongoDB connection and persistence logic lives in `storage/`.
 
