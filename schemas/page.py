@@ -5,6 +5,7 @@ from pydantic import Field
 
 class Page(Document):
     url: Indexed(str, unique=True)
+    aliases: list[str] = Field(default_factory=list)
     title: Optional[str] = None
     meta_description: Optional[str] = None
     clean_text: str

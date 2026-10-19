@@ -5,7 +5,7 @@ import asyncio
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.crawler import crawl, normalize_url, already_indexed_urls
+from src.crawler import crawl, already_indexed_urls, filter_seed_urls
 from src.search import search
 from src.ranker import bm25_parameters
 
@@ -39,13 +39,11 @@ async def main(refresh_existing=False):
         "https://en.wikipedia.org/wiki/Search_engine",
         "https://thaseenabbut.github.io/LazaBot-Legal/",
         "apple.com",
+        "amazon.com",
     ]
     
     indexed_urls = await already_indexed_urls()
-    new_seed_urls = [
-        url for url in seed_urls
-        if "://" in url and normalize_url(url) not in indexed_urls
-    ] # this filters out even apple.com because it doesn't have a scheme, so have to hit --refresh to re-index new links like apple.com type, this is temp fix
+    urls_to_crawl = filter_seed_urls(seed_urls, indexed_urls, refresh_existing)
 
     if stats and stats.total_documents > 0:
         print("Existing index found.")
@@ -53,10 +51,8 @@ async def main(refresh_existing=False):
     if refresh_existing:
         urls_to_crawl = seed_urls
         print(f"Refreshing {len(urls_to_crawl)} seed URL(s)...")
-    else:
-        urls_to_crawl = new_seed_urls
-        if urls_to_crawl:
-            print(f"Crawling {len(urls_to_crawl)} new seed URL(s)...")
+    elif urls_to_crawl:
+        print(f"Crawling {len(urls_to_crawl)} new seed URL(s)...")
 
     if urls_to_crawl:
         with console.status("[bold green]Crawling and indexing pages...[/bold green]", spinner="dots"):

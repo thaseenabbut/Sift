@@ -35,6 +35,25 @@ def is_tracking_query_parameter(part):
     key = unquote_plus(part.partition("=")[0]).lower()
     return key.startswith(TRACKING_QUERY_PARAMETER_PREFIXES) or key in TRACKING_QUERY_PARAMETERS
 
+def filter_seed_urls(seed_urls, indexed_urls, refresh_existing=False):
+    result = []
+    for url in seed_urls:
+        normalized = normalize_url(url)
+        if normalized is None:
+            continue
+        if refresh_existing or normalized not in indexed_urls:
+            result.append(normalized)
+    return result
+
+
+async def record_alias(alias_url, target_url):
+    alias_url = normalize_url(alias_url)
+    target_url = normalize_url(target_url)
+    if alias_url is None or target_url is None or alias_url == target_url:
+        return
+    page = await Page.find_one({"url": target_url})
+    if page is not None:
+        await page.update({"$addToSet": {"aliases": alias_url}})
 
 def normalize_url(url):
     if not isinstance(url, str):
@@ -162,11 +181,9 @@ async def already_indexed_urls():
     if stats and stats.document_length:
         indexed.update(stats.document_length.keys())
     pages = await Page.find_all().to_list()
-    indexed.update(page.url for page in pages)
-    indexed.update(
-        normalized for url in tuple(indexed)
-        if (normalized := normalize_url(url)) is not None
-    )
+    for page in pages:
+        indexed.add(page.url)
+        indexed.update(page.aliases or [])
     return indexed
 
 
@@ -218,7 +235,7 @@ def is_permanent_redirect(response, requested_url, final_url):
     )
 
 
-async def persist_permanent_redirect(source_url, destination_url, html):
+async def persist_permanent_redirect(source_url, destination_url, html, refresh_existing=False):
     source_url = normalize_url(source_url)
     destination_url = normalize_url(destination_url)
     if source_url is None or destination_url is None:
@@ -233,10 +250,8 @@ async def persist_permanent_redirect(source_url, destination_url, html):
     if destination is not None:
         if source is not None and source_url != destination_url:
             await remove_document_from_index(source_url, delete_page=True)
-        stats = await ensure_stats()
-        if destination_url not in stats.document_length:
-            await index_page(destination)
-        return source is not None
+        updated = await persist_crawled_page(destination_url, html, refresh_existing)
+        return updated or source is not None
 
     if source is None:
         # when there is nothing to migrate; index the canonical URL directly.
@@ -273,6 +288,7 @@ async def reconcile_canonical_alias(requested_url, effective_url, canonical_url)
 
     for alias_url in {requested_url, effective_url} - {canonical_url}:
         await remove_document_from_index(alias_url, delete_page=True)
+        await record_alias(alias_url, canonical_url)
     return True
 
 
@@ -394,8 +410,9 @@ async def crawl(seed_urls, max_pages=100, refresh_existing=False):
 
         if is_permanent_redirect(response, current_url, final_url):
             stored = await persist_permanent_redirect(
-                current_url, final_url, response.text
+                current_url, final_url, response.text, refresh_existing
             )
+            await record_alias(current_url, final_url)
         else:
             # Preserve the established behaviour for 302/307 responses: their
             # content is associated with the originally requested URL, not
