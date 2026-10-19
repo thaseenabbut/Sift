@@ -34,7 +34,7 @@ async def highlighting_terms(snippet, query_terms):
         )
     return highlighted
 
-async def results(ranked_results, pages, query_terms, term_docs_lookup):
+async def results(ranked_results, pages, query_terms, term_docs_lookup, result_data):
     if not ranked_results:
         print("Your search did not match any documents. Please try different keywords.")
         return
@@ -51,3 +51,10 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup):
         print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
         print(f"[dim]{highlighted_snippet}[/dim]")
         print("\n")
+        
+        result_data.append({
+            "title": doc.title,
+            "url": doc.url,
+            "snippet": snippet,
+            "score": score,
+        })
