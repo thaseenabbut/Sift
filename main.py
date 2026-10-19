@@ -44,8 +44,8 @@ async def main(refresh_existing=False):
     indexed_urls = await already_indexed_urls()
     new_seed_urls = [
         url for url in seed_urls
-        if normalize_url(url) not in indexed_urls
-    ]
+        if "://" in url and normalize_url(url) not in indexed_urls
+    ] # this filters out even apple.com because it doesn't have a scheme, so have to hit --refresh to re-index new links like apple.com type, this is temp fix
 
     if stats and stats.total_documents > 0:
         print("Existing index found.")
