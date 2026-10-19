@@ -1,6 +1,6 @@
 import re
-from tokenizer import tokenize
-from stemmer import stem
+from src.tokenizer import tokenize
+from src.stemmer import stem
 from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
