@@ -1,8 +1,7 @@
-from retriever import phrase_search
-from query_parser import parse_query
-from retriever import retrieve, apply_operators
-from ranker import score_document, collect_ranking_terms, build_idf_cache
-from results import results
+from src.query_parser import parse_query
+from src.retriever import retrieve, apply_operators, phrase_search
+from src.ranker import score_document, collect_ranking_terms, build_idf_cache
+from src.results import results
 from schemas.search_index import TermDocument, IndexStats
 from schemas.page import Page
 
@@ -59,4 +58,9 @@ async def search(query, bm25_parameters):
         scored_docs.append((doc_id, score))
 
     scored_docs.sort(key=lambda x: x[1], reverse=True)
-    await results(scored_docs, pages_lookup, ranking_terms, term_docs_lookup)
+    
+    result_data = []
+    
+    await results(scored_docs, pages_lookup, ranking_terms, term_docs_lookup, result_data)
+    
+    return result_data
