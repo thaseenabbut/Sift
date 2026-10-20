@@ -1,86 +1,141 @@
 # Sift
 
-Sift is a small, modular Python search-engine project. It crawls web pages,
-builds an inverted index, and lets you query them from the command line using
-BM25 ranking. The index is persisted to MongoDB via Beanie (an async ODM).
+Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, and MongoDB. It crawls web pages with `robots.txt` compliance, extracts content, builds an inverted index with positional tracking, and ranks results using the BM25 probabilistic relevance algorithm.
 
-## Project structure
+Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API.
+
+---
+
+## Features
+
+- **Web Crawling & Discovery**: Asynchronous crawler with `robots.txt` adherence (`urllib.robotparser`), per-domain crawl delays, and SHA-256 content hash deduplication.
+- **Inverted Index with Positional Data**: Stores term frequencies, document frequencies, and word position lists (`positions`) in MongoDB to enable precise exact phrase search and proximity checks.
+- **BM25 Ranking Algorithm**: Probabilistic relevance scoring with configurable parameters ($k_1 = 1.2, b = 0.75$), document length normalization, and cached inverse document frequencies (IDF).
+- **Advanced Query Operators**:
+  - Required terms (`+python`) and excluded terms (`-java`)
+  - Exact phrase matching (`"machine learning"`)
+  - Domain filtering (`site:wikipedia.org`)
+  - Title filtering (`intitle:python`)
+  - URL filtering (`inurl:wiki`)
+  - Related term matching (`related:search`)
+- **Index Integrity & Self-Repair**: Automated verification tools (`src/index_integrity.py`) to detect and heal missing postings or desynchronized index statistics.
+- **FastAPI REST API**: Asynchronous search endpoint (`/search`) with validation, query limit parameters, and interactive Swagger UI (`/docs`).
+- **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, and skeleton loading states.
+- **Interactive Terminal CLI**: Built with `rich` for formatted results, clickable links, highlighted snippets, and interactive search loop.
+- **Automated Testing Suite**: Thorough API test suite in `tests/test_search_api.py` covering happy paths, input validation, database failure modes, and regression scenarios.
+
+---
+
+## Project Structure
 
 ```text
-main.py                  Application entry point (CLI)
-app.py                   FastAPI server entry point
-src/
-  api/                   FastAPI package
-    __init__.py          Package initialization
-    routes.py            HTTP route definitions
-    schemas.py           Pydantic request and response models
-  crawler.py             Document discovery and retrieval
-  document_parser.py     Content extraction
-  index_integrity.py     Index health checks and repair
-  tokenizer.py           Text normalisation and tokenisation
-  stemmer.py             Word stemming
-  indexer.py             Inverted-index construction
-  query_parser.py        Query parsing and operator handling
-  retriever.py           Candidate retrieval and operator filtering
-  ranker.py              BM25 scoring
-  results.py             Result formatting and display
-  search.py              Query execution pipeline
-schemas/
-  page.py                Page document schema (Beanie)
-  search_index.py        SearchIndex document schema (Beanie)
-  domain.py              Domain schema
-  crawl_queue.py         Crawl queue schema
-storage/
-  mongodb.py             MongoDB connection and Beanie initialisation
-data/                    Local, generated application data (git-ignored)
+Sift/
+├── app.py                   FastAPI server entry point and lifespan manager
+├── main.py                  CLI entry point for crawling, indexing, and interactive search
+├── pyproject.toml           Python package configuration and dependencies
+├── src/
+│   ├── api/                 FastAPI web package
+│   │   ├── routes.py        HTTP route definitions (/search)
+│   │   └── schemas.py       Pydantic request and response schemas
+│   ├── crawler.py           Web crawler, robots.txt handler, and seed processor
+│   ├── document_parser.py   HTML parsing and SHA-256 content hashing
+│   ├── indexer.py           Inverted-index builder and delta updater
+│   ├── index_integrity.py   Index health auditing and automated repair
+│   ├── query_parser.py      Search syntax parser for terms, phrases, and operators
+│   ├── ranker.py            BM25 scoring, term collection, and IDF cache
+│   ├── results.py           Context-aware snippet extraction and terminal highlighting
+│   ├── retriever.py         Posting retrieval, candidate selection, and phrase verification
+│   ├── search.py            End-to-end query execution pipeline
+│   ├── stemmer.py           Porter stemmer integration
+│   └── tokenizer.py         Regex-based tokenization and normalization
+├── schemas/                 Beanie document models (MongoDB ODM)
+│   ├── crawl_queue.py       Crawl task queue schema
+│   ├── domain.py            Domain metadata, robot rules, and crawl delay schema
+│   ├── page.py              Page document schema (title, clean text, content hash)
+│   └── search_index.py      TermDocument, Posting, and IndexStats schemas
+├── storage/
+│   └── mongodb.py           MongoDB connection lifecycle and Beanie initialization
+├── frontend/                React 19 + TypeScript + Vite web interface
+│  ├── src/
+│  │   ├── components/      SearchBar, SearchResults, SearchResultItem
+│  │   ├── lib/             API client and query parser
+│  │   ├── types/           TypeScript interfaces
+│  │   └── App.tsx          Main search interface state and layout
+│  ├── package.json         Frontend dependencies and build scripts
+└── README.md            Dedicated frontend documentation
 ```
 
-## Current features
+---
 
-- Web crawling and document discovery
-- HTML content extraction
-- Text tokenisation and stemming
-- Inverted-index based retrieval
-- BM25 ranking
-- Query operators
-- Required and excluded terms
-- Exact phrase search
-- Domain filtering with `site:`
-- Title filtering with `intitle:`
-- URL filtering with `inurl:`
-- Related-term queries with `related:`
-- Result snippets
-- Query-term highlighting
-- Persistent storage using MongoDB and Beanie
-- Search index integrity checking and automated repair
-- FastAPI REST API with interactive documentation (`/docs`)
+## Query Syntax
 
-## Getting started
+Sift supports a Google-like search syntax:
 
-Sift targets Python 3.11 or newer and requires a running MongoDB instance.
+| Syntax | Description | Example |
+|---|---|---|
+| `terms` | Standard query terms — scored and ranked via BM25 | `python async web` |
+| `+term` | **Required term** — document must contain this term | `+fastapi framework` |
+| `-term` | **Excluded term** — documents containing this term are omitted | `python -snakes` |
+| `"phrase"` | **Exact phrase** — matches words in precise sequential order | `"search engine"` |
+| `site:domain` | **Domain filter** — restricts results to a specific host | `site:wikipedia.org` |
+| `intitle:term` | **Title search** — term must appear in the document title | `intitle:python` |
+| `inurl:term` | **URL search** — term must appear in the URL path or host | `inurl:wiki` |
+| `related:term` | **Related terms** — finds documents mentioning related concepts | `related:database` |
 
-### 1. Clone and create a virtual environment
+*Operators can be combined freely, for example: `intitle:python "web framework" -flask site:wikipedia.org`.*
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Python**: 3.11 or newer
+- **MongoDB**: 6.0+ (running locally or via Docker)
+- **Node.js**: 18+ and npm (optional, for running the React frontend)
+
+---
+
+### 1. Clone Repository & Setup Virtual Environment
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/thaseenabbut/Sift.git
 cd Sift
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2. Install dependencies
+---
+
+### 2. Install Python Dependencies
+
+Install Sift in editable mode with development/test dependencies:
 
 ```bash
-pip install -e .
+pip install -e ".[test]"
 ```
 
-Or, if a `requirements.txt` is present:
+Or install the required packages directly:
 
 ```bash
-pip install -r requirements.txt
+pip install fastapi uvicorn[standard] motor beanie beautifulsoup4 nltk rich requests tldextract pydantic pytest pytest-asyncio httpx
 ```
 
-### 3. Configure environment variables
+*Note: Sift automatically downloads required NLTK tokenizers upon first run.*
+
+---
+
+### 3. Start MongoDB
+
+If MongoDB is not installed as a system service, start an instance via Docker:
+
+```bash
+docker run -d --name sift-mongo -p 27017:27017 mongo:latest
+```
+
+---
+
+### 4. Configure Environment Variables
 
 Create a `.env` file in the repository root:
 
@@ -89,96 +144,117 @@ MONGO_URI=mongodb://localhost:27017
 DATABASE_NAME=sift
 ```
 
-### 4. Run CLI
+---
+
+### 5. Run the Crawler & CLI
+
+To crawl seed pages, build the index, and launch the interactive terminal search shell:
 
 ```bash
 python main.py
 ```
 
-The application connects to MongoDB, crawls the configured seed pages, builds the search index, and enters an interactive command-line search loop.
-
-Type `exit` or `quit` (or press `Ctrl-C`) to stop.
-
-### 5. Run FastAPI Server
+To force a re-crawl and refresh of existing seed URLs:
 
 ```bash
-python app.py
+python main.py --refresh
 ```
 
-Or directly with `uvicorn`:
+Type `exit`, `quit`, or press `Ctrl-C` to exit the CLI loop.
+
+---
+
+### 6. Run the FastAPI REST Server
+
+Start the API server:
 
 ```bash
 uvicorn app:app --reload
 ```
 
-- **Root endpoint**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Interactive docs (Swagger UI)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Alternative docs (ReDoc)**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- **API Base**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Alternative ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-## Query syntax
+---
 
-Sift supports a Google-like query syntax:
+### 7. Run the React Frontend Web UI
 
-| Syntax | Description |
-|---|---|
-| `python web` | Normal terms — ranked by BM25 |
-| `+python` | Required term — document must contain it |
-| `-java` | Excluded term — document must not contain it |
-| `"search engine"` | Exact phrase match |
-| `site:wikipedia.org` | Restrict results to a domain |
-| `intitle:python` | Term must appear in the page title |
-| `inurl:wiki` | Term must appear in the URL |
-| `related:python` | Find pages related to a term |
+In a new terminal window:
 
-## Search pipeline
-
-Sift processes a search through several stages:
-
-```text
-Web Pages
-    ↓
-Crawler
-    ↓
-Document Parser
-    ↓
-Tokenizer / Stemmer
-    ↓
-Search Index
-    ↓
-Query Parser
-    ↓
-Retriever
-    ↓
-BM25 Ranker
-    ↓
-Result Generation
-    ↓
-CLI
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-The search index is persisted so that search data can be reused instead of rebuilding the entire index every time the application starts.
+Open your browser to **[http://localhost:5173](http://localhost:5173)** to access the web search interface. See [`frontend/README.md`](frontend/README.md) for full frontend documentation.
 
-## Development
+---
 
-Keep reusable application logic in `src/`. Use `main.py` to wire the command-line interface and `app.py` with `src/api/` to expose the HTTP API.
+### 8. Run Automated Tests
 
-Data schemas live in `schemas/`, while MongoDB connection and persistence logic lives in `storage/`.
+Run the test suite using `pytest`:
 
-Generated indexes, crawler caches, and downloaded documents belong under `data/` and are intentionally excluded from version control.
+```bash
+pytest
+```
 
-## Roadmap
+---
 
-Planned improvements include:
+## REST API Reference
 
-- Graphical search interface
-- Paginated search results
-- Improved result presentation
-- Semantic/vector search
-- Hybrid keyword + semantic ranking
-- Performance optimisations
-- Rust-based components where performance justifies them
-- Open-source release
+### `GET /search`
+
+Searches the indexed corpus using BM25 scoring and operator filtering.
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `q` | `string` | **Yes** | — | Search query string (minimum length 1) |
+| `limit` | `integer` | No | `10` | Maximum number of results to return (1 – 100) |
+
+#### Example Request
+
+```http
+GET /search?q=python+programming&limit=5 HTTP/1.1
+Host: 127.0.0.1:8000
+```
+
+#### Example Response (`200 OK`)
+
+```json
+{
+  "query": "python programming",
+  "count": 2,
+  "results": [
+    {
+      "title": "Python (programming language) - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Python_(programming_language)",
+      "snippet": "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability...",
+      "score": 14.8219
+    },
+    {
+      "title": "Programming language - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Programming_language",
+      "snippet": "A programming language is a system of notation for writing computer programs...",
+      "score": 9.4031
+    }
+  ]
+}
+```
+
+#### Error Responses
+
+| Status Code | Reason | Detail |
+|---|---|---|
+| `400 Bad Request` | Empty query | `"Search query cannot be empty."` |
+| `503 Service Unavailable` | DB connection or missing index | `"Search service is temporarily unavailable."` / `"Search index is not available."` |
+| `500 Internal Server Error` | Unexpected processing error | `"An unexpected error occurred while searching."` |
+
+---
 
 ## License
 
-Sift is released under the [MIT License](LICENSE)
+Sift is open-source software licensed under the [MIT License](LICENSE).
