@@ -69,8 +69,7 @@ export function SearchResults({
       {status === 'done' && response && results.length > 0 && (
         <>
           <p className="summary" aria-live="polite">
-            {results.length} {results.length === 1 ? 'result' : 'results'} for “{submitted}” in{' '}
-            {response.tookMs} ms
+            {results.length} {results.length === 1 ? 'result' : 'results'} for “{submitted}”
           </p>
           <ol className="result-list">
             {results.map((result) => (
