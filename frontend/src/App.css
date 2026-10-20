@@ -1,0 +1,403 @@
+.sift {
+  --bg: #f2f4f1;
+  --surface: #ffffff;
+  --ink: #14201d;
+  --ink-soft: #52615d;
+  --line: #d3dad5;
+  --accent: #1f5c57;
+  --accent-strong: #174844;
+  --on-accent: #ffffff;
+  --visited: #5b4b8a;
+  --mark: #ffe08a;
+  --hole: #c3ccc6;
+  --ring: rgba(31, 92, 87, 0.2);
+
+  --font-display: 'SF Pro Text', system-ui, sans-serif;
+  --font-body: ui-sans-serif, -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  --font-code: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --gutter: 24px;
+  --wordmark-col: 84px;
+  --bar-width: 680px;
+
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sift {
+    --bg: #0f1716;
+    --surface: #162220;
+    --ink: #e7efec;
+    --ink-soft: #9fb2ac;
+    --line: #2a3b38;
+    --accent: #6fd0c4;
+    --accent-strong: #8fe0d6;
+    --on-accent: #0b1513;
+    --visited: #b5a6e6;
+    --mark: rgba(255, 214, 107, 0.3);
+    --hole: #27403b;
+    --ring: rgba(111, 208, 196, 0.28);
+  }
+}
+
+.sift *,
+.sift *::before,
+.sift *::after {
+  box-sizing: border-box;
+}
+
+.sift button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Masthead: wordmark + search ---------- */
+.masthead {
+  position: relative;
+  isolation: isolate; /* keeps the dot pattern behind the content */
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  padding: clamp(64px, 20vh, 200px) var(--gutter) 40px;
+}
+
+/* A field of "sieve holes" that fades out toward the edges. */
+.masthead::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle, var(--hole) 1.5px, transparent 2px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(ellipse 55% 65% at 50% 38%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 55% 65% at 50% 38%, #000 0%, transparent 72%);
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 13vw, 6.25rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.wordmark button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+.tagline {
+  margin: -6px 0 4px;
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+}
+
+/* Results mode: a compact, sticky bar. */
+.masthead[data-mode='results'] {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  grid-template-columns: var(--wordmark-col) minmax(0, var(--bar-width));
+  justify-content: start;
+  justify-items: stretch;
+  align-items: center;
+  column-gap: 24px;
+  padding: 14px var(--gutter);
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.masthead[data-mode='results']::before {
+  display: none;
+}
+
+.masthead[data-mode='results'] .wordmark {
+  font-size: 2.25rem;
+}
+
+/* ---------- Search bar ---------- */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: var(--bar-width);
+  padding: 6px 10px 6px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+
+.searchbar-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-soft);
+}
+
+.searchbar input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 4px;
+  border: 0;
+  outline: none; /* the focus ring is drawn on the whole bar via :focus-within */
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.0625rem;
+}
+
+.searchbar input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+/* ---------- Buttons ---------- */
+.primary-button {
+  flex: none;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transition: background-color 0.15s;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.icon-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.icon-button:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.text-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Results ---------- */
+.results {
+  width: 100%;
+  /* Left padding lines the cards up with the search bar above them. */
+  max-width: calc(var(--wordmark-col) + 24px + var(--bar-width) + var(--gutter) * 2);
+  padding: 24px var(--gutter) 72px calc(var(--gutter) + var(--wordmark-col) + 24px);
+}
+
+.summary {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.result-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result {
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: border-color 0.15s;
+}
+
+.result:hover {
+  border-color: var(--accent);
+}
+
+.result-url {
+  margin: 0 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.result-url .host {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.result-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.3125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.result-title a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.result-title a:visited {
+  color: var(--visited);
+}
+
+.result-title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.result-snippet {
+  max-width: 65ch;
+  margin: 0 0 12px;
+}
+
+/* Matched query words. */
+.sift mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--mark);
+  color: inherit;
+}
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score {
+  color: var(--ink-soft);
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+}
+
+/* ---------- Loading, empty, and error states ---------- */
+.skeleton span {
+  display: block;
+  height: 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--line);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton span:nth-child(1) {
+  width: 30%;
+}
+.skeleton span:nth-child(2) {
+  width: 65%;
+  height: 18px;
+}
+.skeleton span:nth-child(3) {
+  width: 95%;
+}
+.skeleton span:nth-child(4) {
+  width: 60%;
+  margin-bottom: 0;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.notice {
+  max-width: 52ch;
+  padding: 8px 0;
+}
+
+.notice h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+.notice p {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+}
+
+.notice code {
+  font-family: var(--font-code);
+  font-size: 0.875em;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+  .sift {
+    --gutter: 16px;
+  }
+
+  /* Wordmark stacks above the bar; cards use the full width. */
+  .masthead[data-mode='results'] {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .masthead[data-mode='results'] .wordmark {
+    font-size: 1.75rem;
+  }
+
+  .results {
+    max-width: none;
+    padding: 20px var(--gutter) 56px;
+  }
+
+  .result {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sift *,
+  .sift *::before,
+  .sift *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,8 @@
+/* fonts.css */
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/assets/fonts/SFProDisplay-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
