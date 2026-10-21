@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { SearchResponse, Status } from '../types/search'
 import { SearchResultItem } from './SearchResultItem'
 import { getHighlightTerms, parseQuery } from '../lib/query'
+import { Pagination } from './Pagination'
 
 export type SearchResultsProps = {
   status: Status
@@ -9,6 +10,9 @@ export type SearchResultsProps = {
   error?: string
   submitted: string
   highlightTerms?: string[]
+  page?: number
+  totalPages?: number
+  onPageChange?: (page: number) => void
 }
 
 export function SkeletonList() {
@@ -32,6 +36,9 @@ export function SearchResults({
   error = '',
   submitted,
   highlightTerms: propHighlightTerms,
+  page = 1,
+  totalPages = 1,
+  onPageChange,
 }: SearchResultsProps) {
   const computedHighlightTerms = useMemo(
     () => getHighlightTerms(parseQuery(submitted)),
@@ -80,6 +87,9 @@ export function SearchResults({
               />
             ))}
           </ol>
+          {onPageChange && (
+            <Pagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
+          )}
         </>
       )}
     </main>
