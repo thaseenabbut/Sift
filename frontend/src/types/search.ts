@@ -8,6 +8,9 @@ export type SearchResult = {
 export type SearchResponse = {
   query: string
   count: number
+  total: number
+  page: number
+  page_size: number
   results: SearchResult[]
 }
 
