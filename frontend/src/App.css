@@ -339,6 +339,49 @@
   font-weight: inherit;
 }
 
+/* ---------- Pagination ---------- */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 28px;
+}
+
+.pagination .page-button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.pagination .page-button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.pagination .page-button[aria-current='page'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.pagination .page-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-gap {
+  padding: 0 4px;
+  color: var(--ink-soft);
+}
+
 /* ---------- Loading, empty, and error states ---------- */
 .skeleton span {
   display: block;
