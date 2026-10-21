@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 @router.get("/search", response_model=SearchResponse)
 async def get_search(
     q: str = Query(..., min_length=1),
-    limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
 ):
     query = q.strip()
 
@@ -47,10 +48,15 @@ async def get_search(
             detail="Search index is not available.",
         )
 
-    results = results[:limit]
+    total = len(results)
+    start = (page - 1) * page_size
+    page_results = results[start : start + page_size]
 
     return {
         "query": query,
         "count": len(results),
-        "results": results,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "results": page_results,
     }

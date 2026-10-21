@@ -10,4 +10,7 @@ class SearchResult(BaseModel):
 class SearchResponse(BaseModel):
     query: str
     count: int
+    total: int
+    page: int
+    page_size: int
     results: list[SearchResult]
