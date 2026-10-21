@@ -2,7 +2,7 @@
 
 Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, and MongoDB. It crawls web pages with `robots.txt` compliance, extracts content, builds an inverted index with positional tracking, and ranks results using the BM25 probabilistic relevance algorithm.
 
-Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API.
+Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API with full pagination support.
 
 ---
 
@@ -18,9 +18,10 @@ Sift features both an interactive command-line interface with rich terminal form
   - Title filtering (`intitle:python`)
   - URL filtering (`inurl:wiki`)
   - Related term matching (`related:search`)
+- **Server-Side & Client-Side Pagination**: Full pagination support through `page` and `page_size` query parameters on the API, paired with a React pagination component supporting numeric navigation, smart gap calculation, and smooth scrolling.
 - **Index Integrity & Self-Repair**: Automated verification tools (`src/index_integrity.py`) to detect and heal missing postings or desynchronized index statistics.
-- **FastAPI REST API**: Asynchronous search endpoint (`/search`) with validation, query limit parameters, and interactive Swagger UI (`/docs`).
-- **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, and skeleton loading states.
+- **FastAPI REST API**: Asynchronous search endpoint (`/search`) with pagination parameters, input validation, and interactive Swagger UI (`/docs`).
+- **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, modular component CSS, and skeleton loading states.
 - **Interactive Terminal CLI**: Built with `rich` for formatted results, clickable links, highlighted snippets, and interactive search loop.
 - **Automated Testing Suite**: Thorough API test suite in `tests/test_search_api.py` covering happy paths, input validation, database failure modes, and regression scenarios.
 
@@ -35,7 +36,7 @@ Sift/
 ├── pyproject.toml           Python package configuration and dependencies
 ├── src/
 │   ├── api/                 FastAPI web package
-│   │   ├── routes.py        HTTP route definitions (/search)
+│   │   ├── routes.py        HTTP route definitions (/search with pagination)
 │   │   └── schemas.py       Pydantic request and response schemas
 │   ├── crawler.py           Web crawler, robots.txt handler, and seed processor
 │   ├── document_parser.py   HTML parsing and SHA-256 content hashing
@@ -56,13 +57,17 @@ Sift/
 ├── storage/
 │   └── mongodb.py           MongoDB connection lifecycle and Beanie initialization
 ├── frontend/                React 19 + TypeScript + Vite web interface
-│  ├── src/
-│  │   ├── components/      SearchBar, SearchResults, SearchResultItem
-│  │   ├── lib/             API client and query parser
-│  │   ├── types/           TypeScript interfaces
-│  │   └── App.tsx          Main search interface state and layout
-│  ├── package.json         Frontend dependencies and build scripts
-└── README.md            Dedicated frontend documentation
+│   ├── src/
+│   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
+│   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
+│   │   ├── lib/             API client with pagination and query parser
+│   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
+│   │   └── App.tsx          Main search interface state and layout
+│   ├── package.json         Frontend dependencies and build scripts
+│   └── README.md            Dedicated frontend documentation
+└── tests/                   Pytest test suite
+    ├── conftest.py          Shared test fixtures and database mocks
+    └── test_search_api.py   Search API unit, validation, and regression tests
 ```
 
 ---
@@ -206,19 +211,20 @@ pytest
 
 ### `GET /search`
 
-Searches the indexed corpus using BM25 scoring and operator filtering.
+Searches the indexed corpus using BM25 scoring, operator filtering, and server-side pagination.
 
 #### Query Parameters
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `q` | `string` | **Yes** | — | Search query string (minimum length 1) |
-| `limit` | `integer` | No | `10` | Maximum number of results to return (1 – 100) |
+| `page` | `integer` | No | `1` | Page number to retrieve ($\ge 1$) |
+| `page_size` | `integer` | No | `10` | Maximum results per page ($1 \le \text{page\_size} \le 100$) |
 
 #### Example Request
 
 ```http
-GET /search?q=python+programming&limit=5 HTTP/1.1
+GET /search?q=python+programming&page=1&page_size=10 HTTP/1.1
 Host: 127.0.0.1:8000
 ```
 
@@ -228,6 +234,9 @@ Host: 127.0.0.1:8000
 {
   "query": "python programming",
   "count": 2,
+  "total": 2,
+  "page": 1,
+  "page_size": 10,
   "results": [
     {
       "title": "Python (programming language) - Wikipedia",
@@ -249,8 +258,9 @@ Host: 127.0.0.1:8000
 
 | Status Code | Reason | Detail |
 |---|---|---|
-| `400 Bad Request` | Empty query | `"Search query cannot be empty."` |
-| `503 Service Unavailable` | DB connection or missing index | `"Search service is temporarily unavailable."` / `"Search index is not available."` |
+| `400 Bad Request` | Empty query after trimming | `"Search query cannot be empty."` |
+| `422 Unprocessable Entity` | Parameter validation failure | Query missing, `page < 1`, or `page_size` out of bounds |
+| `503 Service Unavailable` | DB connection failure or missing index | `"Search service is temporarily unavailable."` / `"Search index is not available."` |
 | `500 Internal Server Error` | Unexpected processing error | `"An unexpected error occurred while searching."` |
 
 ---
