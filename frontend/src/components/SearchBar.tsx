@@ -1,4 +1,5 @@
 import type { FormEvent, RefObject } from 'react'
+import '../styles/SearchBar.css'
 
 export function SearchIcon() {
   return (

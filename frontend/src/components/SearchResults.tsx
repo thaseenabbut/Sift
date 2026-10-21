@@ -3,6 +3,7 @@ import type { SearchResponse, Status } from '../types/search'
 import { SearchResultItem } from './SearchResultItem'
 import { getHighlightTerms, parseQuery } from '../lib/query'
 import { Pagination } from './Pagination'
+import '../styles/SearchResults.css'
 
 export type SearchResultsProps = {
   status: Status

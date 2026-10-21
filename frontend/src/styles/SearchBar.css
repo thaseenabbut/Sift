@@ -1,0 +1,36 @@
+/* ---------- Search bar ---------- */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: var(--bar-width);
+  padding: 6px 10px 6px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+
+.searchbar-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-soft);
+}
+
+.searchbar input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 4px;
+  border: 0;
+  outline: none; /* the focus ring is drawn on the whole bar via :focus-within */
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.0625rem;
+}
+
+.searchbar input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.8;
+}

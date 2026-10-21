@@ -1,0 +1,82 @@
+/* ---------- Results ---------- */
+.results {
+  width: 100%;
+  /* Left padding lines the cards up with the search bar above them. */
+  max-width: calc(var(--wordmark-col) + 24px + var(--bar-width) + var(--gutter) * 2);
+  padding: 24px var(--gutter) 72px calc(var(--gutter) + var(--wordmark-col) + 24px);
+}
+
+.summary {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.result-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- Loading, empty, and error states ---------- */
+.skeleton span {
+  display: block;
+  height: 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--line);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton span:nth-child(1) {
+  width: 30%;
+}
+.skeleton span:nth-child(2) {
+  width: 65%;
+  height: 18px;
+}
+.skeleton span:nth-child(3) {
+  width: 95%;
+}
+.skeleton span:nth-child(4) {
+  width: 60%;
+  margin-bottom: 0;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.notice {
+  max-width: 52ch;
+  padding: 8px 0;
+}
+
+.notice h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+.notice p {
+  margin: 0 0 16px;
+  color: var(--ink-soft);
+}
+
+.notice code {
+  font-family: var(--font-code);
+  font-size: 0.875em;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+  .results {
+    max-width: none;
+    padding: 20px var(--gutter) 56px;
+  }
+}

@@ -1,5 +1,6 @@
 import type { SearchResult } from '../types/search'
 import { escapeRegExp } from '../lib/query'
+import '../styles/SearchResultItem.css'
 
 export function Highlight({ text, terms }: { text: string; terms: string[] }) {
   if (terms.length === 0) return <>{text}</>

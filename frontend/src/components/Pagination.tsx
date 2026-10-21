@@ -1,3 +1,5 @@
+import '../styles/Pagination.css'
+
 export type PaginationProps = {
   page: number
   totalPages: number
