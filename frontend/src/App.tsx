@@ -6,11 +6,14 @@ import { getHighlightTerms, parseQuery } from './lib/query'
 import { SearchBar } from './components/SearchBar'
 import { SearchResults } from './components/SearchResults'
 
+const PAGE_SIZE = 10
+
 function App() {
   const [query, setQuery] = useState('') // what is in the input right now
   const [submitted, setSubmitted] = useState('') // the query the current results belong to
   const [status, setStatus] = useState<Status>('idle')
   const [response, setResponse] = useState<SearchResponse | null>(null)
+  const [page, setPage] = useState(1)
   const [error, setError] = useState('')
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -26,18 +29,19 @@ function App() {
     }
   }, [submitted]) // Triggers whenever a search completes/submits or resets
 
-  const runSearch = useCallback(async (raw: string) => {
+  const runSearch = useCallback(async (raw: string, targetPage = 1) => {
     const trimmed = raw.trim()
     if (!trimmed) return
 
     const id = ++requestId.current
     setQuery(trimmed)
     setSubmitted(trimmed)
+    setPage(targetPage)
     setStatus('loading')
     setError('')
 
     try {
-      const data = await searchSift(trimmed)
+      const data = await searchSift(trimmed, targetPage)
       if (id !== requestId.current) return
       setResponse(data)
       setStatus('done')
@@ -58,6 +62,7 @@ function App() {
   }
 
   const highlightTerms = useMemo(() => getHighlightTerms(parseQuery(submitted)), [submitted])
+  const totalPages = response ? Math.max(1, Math.ceil(response.total / PAGE_SIZE)) : 1
 
   const mode = status === 'idle' ? 'home' : 'results'
 
@@ -87,6 +92,12 @@ function App() {
           error={error}
           submitted={submitted}
           highlightTerms={highlightTerms}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={(p) => {
+            runSearch(submitted, p)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
         />
       )}
     </div>
