@@ -1,0 +1,88 @@
+/* ── 404 Page ─────────────────────────────────────── */
+.not-found-page {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sieve‑dot backdrop — matches the home page pattern */
+.not-found-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(circle, var(--hole) 1.5px, transparent 2px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000 0%, transparent 75%);
+  opacity: 0.6;
+}
+
+.not-found-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 var(--gutter);
+  animation: fadeUp 0.5s ease-out both;
+}
+
+/* Giant "404" number */
+.not-found-code {
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 22vw, 14rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.12;
+  user-select: none;
+  margin-bottom: -1.5rem;
+}
+
+.not-found-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.not-found-desc {
+  margin: 12px 0 0;
+  max-width: 400px;
+  font-size: 1rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.not-found-home {
+  margin-top: 28px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .not-found-content {
+    animation: none;
+  }
+}
