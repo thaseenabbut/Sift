@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
+import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import './App.css'
 import type { SearchResponse, Status } from './types/search'
 import { searchSift } from './lib/api'
@@ -9,62 +10,83 @@ import { SearchResults } from './components/SearchResults'
 const PAGE_SIZE = 10
 
 function App() {
-  const [query, setQuery] = useState('') // what is in the input right now
-  const [submitted, setSubmitted] = useState('') // the query the current results belong to
-  const [status, setStatus] = useState<Status>('idle')
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // URL is the source of truth for the submitted query and page.
+  const urlQuery = searchParams.get('q') ?? ''
+  const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+
+  const [query, setQuery] = useState(urlQuery) // what is in the input right now
+  const [status, setStatus] = useState<Status>(urlQuery ? 'loading' : 'idle')
   const [response, setResponse] = useState<SearchResponse | null>(null)
-  const [page, setPage] = useState(1)
   const [error, setError] = useState('')
 
   const inputRef = useRef<HTMLInputElement>(null)
-  // Every search gets an id. If a slower, older request finishes after a newer
-  // one, its id no longer matches and we ignore it (a classic race condition).
   const requestId = useRef(0)
 
   useEffect(() => {
-    if (submitted.trim() === '') {
+    setQuery(urlQuery)
+  }, [urlQuery])
+
+  useEffect(() => {
+    if (urlQuery.trim() === '') {
       document.title = 'Sift Search'
     } else {
-      document.title = `${submitted} - Sift Search`
+      document.title = `${urlQuery} - Sift Search`
     }
-  }, [submitted]) // Triggers whenever a search completes/submits or resets
+  }, [urlQuery])
 
-  const runSearch = useCallback(async (raw: string, targetPage = 1) => {
-    const trimmed = raw.trim()
-    if (!trimmed) return
+  useEffect(() => {
+    const trimmed = urlQuery.trim()
+    if (!trimmed) {
+      setStatus('idle')
+      setResponse(null)
+      setError('')
+      return
+    }
 
     const id = ++requestId.current
-    setQuery(trimmed)
-    setSubmitted(trimmed)
-    setPage(targetPage)
     setStatus('loading')
     setError('')
 
-    try {
-      const data = await searchSift(trimmed, targetPage)
-      if (id !== requestId.current) return
-      setResponse(data)
-      setStatus('done')
-    } catch (err) {
-      if (id !== requestId.current) return
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-      setStatus('error')
-    }
-  }, [])
+    searchSift(trimmed, urlPage)
+      .then((data) => {
+        if (id !== requestId.current) return
+        setResponse(data)
+        setStatus('done')
+      })
+      .catch((err) => {
+        if (id !== requestId.current) return
+        setError(err instanceof Error ? err.message : 'Something went wrong.')
+        setStatus('error')
+      })
+  }, [urlQuery, urlPage])
+
+  const handleSearch = useCallback((raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`)
+  }, [navigate])
+
+  const handlePageChange = useCallback((p: number) => {
+    const params = new URLSearchParams({ q: urlQuery })
+    if (p > 1) params.set('page', String(p))
+    navigate(`/search?${params.toString()}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [navigate, urlQuery])
 
   const goHome = () => {
     requestId.current++
-    setQuery('')
-    setSubmitted('')
-    setResponse(null)
-    setStatus('idle')
+    navigate('/')
     inputRef.current?.focus()
   }
 
-  const highlightTerms = useMemo(() => getHighlightTerms(parseQuery(submitted)), [submitted])
+  const highlightTerms = useMemo(() => getHighlightTerms(parseQuery(urlQuery)), [urlQuery])
   const totalPages = response ? Math.max(1, Math.ceil(response.total / PAGE_SIZE)) : 1
 
-  const mode = status === 'idle' ? 'home' : 'results'
+  const mode = location.pathname === '/search' && urlQuery ? 'results' : 'home'
 
   return (
     <div className="sift">
@@ -81,7 +103,7 @@ function App() {
           value={query}
           inputRef={inputRef}
           onChange={setQuery}
-          onSubmit={() => runSearch(query)}
+          onSubmit={() => handleSearch(query)}
         />
       </header>
 
@@ -90,15 +112,24 @@ function App() {
           status={status}
           response={response}
           error={error}
-          submitted={submitted}
+          submitted={urlQuery}
           highlightTerms={highlightTerms}
-          page={page}
+          page={urlPage}
           totalPages={totalPages}
-          onPageChange={(p) => {
-            runSearch(submitted, p)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}
+          onPageChange={handlePageChange}
         />
+      )}
+
+      {mode === 'home' && (
+        <footer className="site-footer">
+          <nav className="footer-links" aria-label="Footer">
+            <Link to="/about">About</Link>
+            <span>·</span>
+            <Link to="/privacy">Privacy</Link>
+            <span>·</span>
+            <Link to="/terms">Terms</Link>
+          </nav>
+        </footer>
       )}
     </div>
   )
