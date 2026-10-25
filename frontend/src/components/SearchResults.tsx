@@ -34,7 +34,6 @@ export function SkeletonList() {
 export function SearchResults({
   status,
   response,
-  error = '',
   submitted,
   highlightTerms: propHighlightTerms,
   page = 1,
@@ -59,8 +58,8 @@ export function SearchResults({
 
       {status === 'error' && (
         <section className="notice" role="alert">
-          <h2>Search didn’t go through</h2>
-          <p>{error}</p>
+          <h2>Can’t reach Sift right now</h2>
+          <p>Please check your connection and try again.</p>
         </section>
       )}
 
