@@ -1,0 +1,599 @@
+/* ── About Page ────────────────────────────────────── */
+
+.about-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Shared section layout ─────────────────────────── */
+.about-section {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.about-section-label {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.about-section-heading {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.about-section-body {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 640px;
+}
+
+.about-section-body p {
+  margin: 0 0 14px;
+}
+
+.about-section-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Top navigation bar ────────────────────────────── */
+.about-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px var(--gutter);
+  border-bottom: 1px solid var(--line);
+}
+
+.about-nav-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.about-nav-wordmark:hover {
+  color: var(--accent);
+}
+
+.about-nav-links {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.about-nav-links a {
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.about-nav-links a:hover {
+  color: var(--accent);
+}
+
+/* ── Hero section ──────────────────────────────────── */
+.about-hero {
+  position: relative;
+  isolation: isolate;
+  padding-top: clamp(64px, 14vh, 140px);
+  padding-bottom: clamp(48px, 10vh, 100px);
+  text-align: center;
+}
+
+/* Sieve-dot backdrop matching the home page */
+.about-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle, var(--hole) 1.5px, transparent 2px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(ellipse 55% 70% at 50% 35%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 55% 70% at 50% 35%, #000 0%, transparent 72%);
+}
+
+.about-hero .about-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.about-hero-headline {
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.about-hero-desc {
+  margin: 0 auto;
+  max-width: 560px;
+  color: var(--ink-soft);
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  line-height: 1.65;
+}
+
+.about-hero-desc p {
+  margin: 0 0 14px;
+}
+
+.about-hero-desc p:last-child {
+  margin-bottom: 0;
+}
+
+.about-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 28px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.about-hero-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.about-hero-link svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* ── Why section ───────────────────────────────────── */
+.about-why {
+  padding-top: clamp(48px, 8vh, 80px);
+  padding-bottom: clamp(48px, 8vh, 80px);
+}
+
+/* ── Architecture section ──────────────────────────── */
+.about-arch {
+  padding-top: clamp(48px, 8vh, 80px);
+  padding-bottom: clamp(48px, 8vh, 80px);
+}
+
+.arch {
+  /* Spine geometry: one column for the line and nodes, then the content. */
+  --indent: 44px;
+  --node: 13px;
+  --node-c: 12px; /* vertical centre of a node, aligned to the stage title */
+  margin-top: 48px;
+}
+
+/* Two phases, separated by a hairline. */
+.arch-phase {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.arch-phase + .arch-phase {
+  margin-top: 28px;
+}
+
+.arch-phase-head {
+  margin-bottom: 28px;
+  padding-left: var(--indent);
+}
+
+.arch-phase-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.arch-phase-intro {
+  margin: 0;
+  max-width: 36rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.arch-stages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arch-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: baseline;
+  padding: 0 0 40px var(--indent);
+}
+
+.arch-stage:last-child {
+  padding-bottom: 8px;
+}
+
+/* The spine: each stage draws its own segment so the line runs node to node. */
+.arch-stage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 1px;
+  background: var(--ink-soft);
+  opacity: 0.3;
+}
+
+.arch-stage:first-child::before {
+  top: var(--node-c);
+}
+
+.arch-stage:last-child::before {
+  bottom: auto;
+  height: var(--node-c);
+}
+
+/* A small arrowhead on the spine, pointing into each stage after the first. */
+.arch-stage:not(:first-child)::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 3px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-soft);
+  border-bottom: 1.5px solid var(--ink-soft);
+  opacity: 0.55;
+  transform: rotate(45deg);
+}
+
+.arch-node {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--node-c) - var(--node) / 2);
+  left: 0;
+  width: var(--node);
+  height: var(--node);
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+/* The index: the one emphasised point in the figure. */
+.arch-stage--hinge .arch-node {
+  top: calc(var(--node-c) - 8.5px);
+  left: -2px;
+  width: 17px;
+  height: 17px;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px var(--ring);
+}
+
+.arch-stage-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.arch-files {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.arch-file {
+  font-family: var(--font-code);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.arch-file:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.arch-stage-body {
+  min-width: 0;
+}
+
+.arch-stage-body > p {
+  margin: 0;
+  max-width: 36rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.arch-stage-body code {
+  font-family: var(--font-code);
+  font-size: 0.85em;
+  color: var(--ink);
+}
+
+/* Excerpts: real data structures and formulas, set between hairlines. */
+.arch-excerpt {
+  max-width: 36rem;
+  margin: 22px 0 0;
+}
+
+.arch-excerpt figcaption {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.arch-code {
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  line-height: 1.8;
+  white-space: pre;
+  tab-size: 2;
+  color: var(--ink);
+}
+
+.arch-code code {
+  font: inherit;
+  color: inherit;
+}
+
+.arch-hl {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.arch-file:focus-visible,
+.arch-code:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ── Road ahead section ────────────────────────────── */
+.about-future {
+  padding-top: clamp(48px, 8vh, 80px);
+  padding-bottom: clamp(48px, 8vh, 80px);
+}
+
+/* The closing section gets the page's largest section heading. */
+.about-future .about-section-heading {
+  font-size: clamp(1.75rem, 4.5vw, 2.5rem);
+  letter-spacing: -0.03em;
+}
+
+.road {
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.road-item {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 14rem) minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: baseline;
+  padding: 32px 0;
+  border-top: 1px solid var(--line);
+}
+
+.road-number {
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.road-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.road-desc {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+/* ── Open Source section ───────────────────────────── */
+.about-opensource {
+  padding-top: clamp(48px, 8vh, 80px);
+  padding-bottom: clamp(48px, 8vh, 80px);
+  text-align: center;
+}
+
+.about-opensource .about-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.about-opensource .about-section-body {
+  text-align: center;
+}
+
+.about-source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.about-source-btn:hover {
+  background: var(--accent-strong);
+}
+
+.about-source-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* ── Footer ────────────────────────────────────────── */
+.about-footer {
+  margin-top: auto;
+  padding: 40px var(--gutter) 32px;
+  border-top: 1px solid var(--line);
+}
+
+.about-footer-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.about-footer-brand {
+  max-width: 280px;
+}
+
+.about-footer-wordmark {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.about-footer-nav {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.about-footer-nav a {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.about-footer-nav a:hover {
+  color: var(--accent);
+}
+
+.about-footer-copy {
+  width: 100%;
+  margin: 0;
+  padding-top: 20px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  opacity: 0.6;
+  text-align: center;
+}
+
+/* ── Responsive: mobile ────────────────────────────── */
+@media (max-width: 720px) {
+  .about-hero-headline {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+  }
+
+  .arch {
+    --indent: 32px;
+    margin-top: 40px;
+  }
+
+  .arch-stage {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 10px;
+  }
+
+  .arch-code {
+    font-size: 0.75rem;
+  }
+
+  .road-item {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 8px;
+    padding: 24px 0;
+  }
+
+  .road-desc {
+    grid-column: 2;
+  }
+
+  .about-footer-inner {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .about-footer-brand {
+    max-width: none;
+  }
+
+  .about-nav-links {
+    gap: 16px;
+  }
+}
+
+/* ── Reduced motion ────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .about-page *,
+  .about-page *::before,
+  .about-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
