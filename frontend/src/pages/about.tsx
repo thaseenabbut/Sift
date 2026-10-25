@@ -380,7 +380,6 @@ export function About() {
       {/* ── Open Source ─────────────────────────────── */}
       <section className="about-opensource" aria-labelledby="about-os-heading">
         <div className="about-section">
-          <span className="about-section-label">Open Source</span>
           <h2 id="about-os-heading" className="about-section-heading">
             Built in the open.
           </h2>

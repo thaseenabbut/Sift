@@ -14,17 +14,6 @@
   padding: 0 var(--gutter);
 }
 
-.about-section-label {
-  display: inline-block;
-  font-family: var(--font-code);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 12px;
-}
-
 .about-section-heading {
   margin: 0 0 16px;
   font-family: var(--font-display);
@@ -444,7 +433,6 @@
 
 /* ── Open Source section ───────────────────────────── */
 .about-opensource {
-  padding-top: clamp(48px, 8vh, 80px);
   padding-bottom: clamp(48px, 8vh, 80px);
   text-align: center;
 }
