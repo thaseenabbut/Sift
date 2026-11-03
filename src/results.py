@@ -1,27 +1,45 @@
 from rich import print
 import re
 
-async def generate_snippet(document, query_terms, term_positions):
-    content = document.clean_text
-    tokens = content.split()
-    best_index = None
-    snippet_length = 20
+def generate_snippet(document, query_terms, term_positions, snippet_length=20, lead=3):
+    tokens = document.clean_text.split()
+    if not tokens:
+        return ""
+
+    hits = sorted(
+        (pos, term.stemmed)
+        for term in query_terms
+        for pos in term_positions.get(term.stemmed, [])
+    )
+    if not hits:
+        return _render(tokens, 0, snippet_length)
     
-    for term in query_terms:
-        positions = term_positions.get(term.stemmed)
-        if positions:
-            best_index = positions[0]
-            break
-        
-    if best_index is None:
-        return " ".join(tokens[:snippet_length]) + "..."
-        
-    start = max(0, best_index - snippet_length // 2)
-    end = min(len(tokens), best_index + snippet_length // 2)
-    
-    suffix = "..." if end < len(tokens) else ""
-    
-    return " ".join(tokens[start:end]) + suffix
+    window = snippet_length - lead
+    counts = {}
+    left = 0
+    best_start, best_score = hits[0][0], 0
+
+    for pos, stem in hits:
+        counts[stem] = counts.get(stem, 0) + 1
+        while pos - hits[left][0] >= window:
+            old = hits[left][1]
+            counts[old] -= 1
+            if counts[old] == 0:
+                del counts[old]
+            left += 1
+        if len(counts) > best_score:
+            best_score, best_start = len(counts), hits[left][0]
+
+    start = max(0, best_start - lead)
+    start = min(start, max(0, len(tokens) - snippet_length))
+    return _render(tokens, start, snippet_length)
+
+
+def _render(tokens, start, length):
+    end = min(len(tokens), start + length)
+    prefix = "... " if start > 0 else ""
+    suffix = " ..." if end < len(tokens) else ""
+    return prefix + " ".join(tokens[start:end]) + suffix
 
 async def highlighting_terms(snippet, query_terms):
     highlighted = snippet
@@ -46,7 +64,7 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup, result_d
             for query in query_terms
             if query.stemmed in term_docs_lookup and url in term_docs_lookup[query.stemmed].postings_by_url
         }
-        snippet = await generate_snippet(doc, query_terms, positions)
+        snippet = generate_snippet(doc, query_terms, positions, snippet_length=20, lead=3)
         highlighted_snippet = await highlighting_terms(snippet, query_terms)
         print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
         print(f"[dim]{highlighted_snippet}[/dim]")
