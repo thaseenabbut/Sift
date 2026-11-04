@@ -38,6 +38,7 @@ class IndexStats(Document):
     document_length: Dict[str, int] = Field(default_factory=dict)
     avg_document_length: float = 0.0
     total_documents: int = 0
+    index_version: int = 1
 
     class Settings:
         name = "index_stats"
