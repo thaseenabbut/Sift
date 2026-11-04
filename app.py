@@ -4,14 +4,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import router
+from storage.redis import RedisManager
 from storage.mongodb import db_manager
+
+redis_manager = RedisManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await db_manager.connect_and_init()
     try:
+        await redis_manager.connect_redis()
+        await db_manager.connect_and_init()
+        
         yield
+        
     finally:
+        await redis_manager.close_redis()
         await db_manager.close()
 
 app = FastAPI(
