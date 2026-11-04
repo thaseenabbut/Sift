@@ -31,7 +31,7 @@ class RedisManager:
             print("[bold red][ERROR][/bold red] Could not connect to Redis: ", e)
             
             if self.redis_client:
-                await self.redis_client.close()
+                await self.redis_client.aclose()
                 print("[bold red][DISCONNECTED][/bold red] Redis connection closed due to error.")
                 self.redis_client = None
                 
