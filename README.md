@@ -57,17 +57,15 @@ Sift/
 ├── storage/
 │   └── mongodb.py           MongoDB connection lifecycle and Beanie initialization
 ├── frontend/                React 19 + TypeScript + Vite web interface
-│   ├── src/
-│   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
-│   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
-│   │   ├── lib/             API client with pagination and query parser
-│   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
-│   │   └── App.tsx          Main search interface state and layout
-│   ├── package.json         Frontend dependencies and build scripts
-│   └── README.md            Dedicated frontend documentation
-└── tests/                   Pytest test suite
-    ├── conftest.py          Shared test fixtures and database mocks
-    └── test_search_api.py   Search API unit, validation, and regression tests
+   ├── src/
+   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
+   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
+   │   ├── lib/             API client with pagination and query parser
+   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
+   │   └── App.tsx          Main search interface state and layout
+   ├── package.json         Frontend dependencies and build scripts
+   └── README.md            Dedicated frontend documentation
+
 ```
 
 ---
