@@ -2,10 +2,12 @@ from src.query_parser import parse_query
 from src.retriever import retrieve, apply_operators, phrase_search
 from src.ranker import score_document, collect_ranking_terms, build_idf_cache
 from src.results import results
+from src.cache import generate_cache_key, get_cached_results, set_cached_results
 from schemas.search_index import TermDocument, IndexStats
 from schemas.page import Page
+from rich import print
 
-async def search(query, bm25_parameters):
+async def search(query, bm25_parameters, redis_manager):
     stats = await IndexStats.find_one({"id_name": "global_stats"})
     if not stats:
         print("Search index stats not found. Have you crawled and indexed yet?")
@@ -61,6 +63,17 @@ async def search(query, bm25_parameters):
     
     result_data = []
     
+    key = generate_cache_key(query, bm25_parameters, stats.index_version)
+    cached_results = await get_cached_results(redis_manager, key)
+    
+    if cached_results is not None:
+        print("[bold green][CACHE HIT][/bold green]")
+        return cached_results
+    
+    print("[bold yellow][CACHE MISS][/bold yellow]")
+    
     await results(scored_docs, pages_lookup, ranking_terms, term_docs_lookup, result_data)
+    
+    await set_cached_results(redis_manager, key, result_data)
     
     return result_data
