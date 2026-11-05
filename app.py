@@ -5,9 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import router
 from storage.redis import RedisManager
-from storage.mongodb import db_manager
+from storage.mongodb import DatabaseManager
 
 redis_manager = RedisManager()
+db_manager = DatabaseManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,7 +21,7 @@ async def lifespan(app: FastAPI):
         
     finally:
         await redis_manager.close_redis()
-        await db_manager.close()
+        await db_manager.close_connection()
 
 app = FastAPI(
     title="Sift API",
