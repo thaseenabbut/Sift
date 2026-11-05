@@ -12,6 +12,18 @@ async def search(query, bm25_parameters, redis_manager):
     if not stats:
         print("Search index stats not found. Have you crawled and indexed yet?")
         return
+    
+    key = generate_cache_key(query, bm25_parameters, stats.index_version)
+        
+    try:
+        cached_results = await get_cached_results(redis_manager, key)
+        if cached_results is not None:
+            print("[bold green][CACHE HIT][/bold green]")
+            return cached_results
+        else:
+            print("[bold yellow][CACHE MISS][/bold yellow]")
+    except (ConnectionError, TimeoutError) as e:
+        print(f"[bold red][ERROR][/bold red] Could not connect to Redis. {type(e).__name__}: {e}")
 
     scored_docs = []
     parsed = parse_query(query)
@@ -63,17 +75,11 @@ async def search(query, bm25_parameters, redis_manager):
     
     result_data = []
     
-    key = generate_cache_key(query, bm25_parameters, stats.index_version)
-    cached_results = await get_cached_results(redis_manager, key)
-    
-    if cached_results is not None:
-        print("[bold green][CACHE HIT][/bold green]")
-        return cached_results
-    
-    print("[bold yellow][CACHE MISS][/bold yellow]")
-    
     await results(scored_docs, pages_lookup, ranking_terms, term_docs_lookup, result_data)
     
-    await set_cached_results(redis_manager, key, result_data)
+    try:
+        await set_cached_results(redis_manager, key, result_data)
+    except (ConnectionError, TimeoutError) as e:
+        print(f"[bold red][ERROR][/bold red] Could not write to Redis cache. {type(e).__name__}: {e}")
     
     return result_data
