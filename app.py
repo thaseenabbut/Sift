@@ -13,6 +13,7 @@ redis_manager = RedisManager()
 async def lifespan(app: FastAPI):
     try:
         await redis_manager.connect_redis()
+        app.state.redis_manager = redis_manager
         await db_manager.connect_and_init()
         
         yield

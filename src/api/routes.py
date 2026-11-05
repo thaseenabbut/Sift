@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pymongo.errors import PyMongoError
 
 from src.search import search
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/search", response_model=SearchResponse)
 async def get_search(
+    request: Request,
     q: str = Query(..., min_length=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
@@ -26,7 +27,8 @@ async def get_search(
         )
         
     try:
-        results = await search(query, bm25_parameters)
+        redis_manager = request.app.state.redis_manager
+        results = await search(query, bm25_parameters, redis_manager)
         
     except PyMongoError:
         logger.exception("Database error while processing search query.")
