@@ -18,6 +18,7 @@ The Sift frontend connects to the Sift FastAPI backend to deliver a Google-like 
 - **URL & Breadcrumb Parsing**: Parses result URLs to extract the clean site name, domain origin, and path breadcrumbs (`example.com › docs › api`).
 - **Favicon Resolution**: Fetches high-resolution site favicons dynamically with automatic fallback on load failure.
 - **Race Condition Prevention**: Employs monotonic request IDs (`requestId.current`) to discard outdated, slower responses when rapid successive queries or page changes occur.
+- **Docker Containerization**: Self-contained `node:22-alpine` container configuration with volume mounting and host binding (`--host 0.0.0.0`) for instant setup and multi-container orchestration.
 - **Modular Component CSS**: Component-scoped stylesheets located in `src/styles/` for clean separation of concerns and maintainability.
 - **Accessible & Semantic UX**: Includes proper ARIA attributes (`role="search"`, `aria-busy`, `aria-live="polite"`, `aria-label`), animated skeleton placeholders during loading, and clear empty/error notices.
 - **Dynamic Document Title**: Updates browser tab title to reflect the active search query (`{query} - Sift Search`).
@@ -31,6 +32,7 @@ The Sift frontend connects to the Sift FastAPI backend to deliver a Google-like 
 | **[React 19](https://react.dev/)** | Core UI component library |
 | **[TypeScript](https://www.typescriptlang.org/)** | Static type checking and safety |
 | **[Vite 8](https://vite.dev/)** | Lightning-fast build tool and local dev server |
+| **[Docker](https://www.docker.com/)** | Containerized dev environment using `node:22-alpine` |
 | **[Oxlint](https://oxc.rs/)** | High-performance JavaScript/TypeScript linter |
 | **Vanilla CSS** | Component-scoped stylesheets and custom design system |
 
@@ -63,6 +65,8 @@ frontend/
 │   ├── font.css            Font definitions and imports
 │   ├── index.css           Global resets and base styles
 │   └── main.tsx            React entry point (mounts to DOM)
+├── .dockerignore        Docker build ignore rules
+├── Dockerfile           Node/Vite development container definition
 ├── .env                    Environment configuration
 ├── .oxlintrc.json          Oxlint linter configuration
 ├── index.html              HTML entry point template
@@ -75,13 +79,51 @@ frontend/
 
 ## Getting Started
 
-### Prerequisites
+You can run the frontend using **Docker** or directly with **Node.js & npm**.
+
+---
+
+### Option A: Running with Docker
+
+#### 1. Via Root Docker Compose (Full Stack)
+
+From the project root directory, you can start the frontend alongside the backend and database services:
+
+```bash
+# Start just the frontend and its dependencies (backend, mongodb, redis)
+docker compose up frontend
+
+# Or run in detached mode
+docker compose up -d frontend
+```
+
+#### 2. Standalone Frontend Container
+
+To build and run the frontend container independently:
+
+```bash
+cd frontend
+
+# Build image
+docker build -t sift-frontend .
+
+# Run container (pointing VITE_API_URL to your running backend)
+docker run -p 5173:5173 -e VITE_API_URL=http://localhost:8000 sift-frontend
+```
+
+Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+
+---
+
+### Option B: Local Development (Node.js & npm)
+
+#### Prerequisites
 
 - **Node.js**: v18.0.0 or higher (v20+ recommended)
 - **npm**: v9.0.0 or higher
-- **Sift API**: Running locally at `http://127.0.0.1:8000` (see root [README.md](../README.md))
+- **Sift API**: Running locally at `http://localhost:8000` (see root [README.md](../README.md))
 
-### 1. Install Dependencies
+#### 1. Install Dependencies
 
 Navigate into the `frontend` folder and install packages:
 
@@ -90,17 +132,17 @@ cd frontend
 npm install
 ```
 
-### 2. Configure Environment Variables
+#### 2. Configure Environment Variables
 
-The frontend is configured via `.env`:
+The frontend reads configuration from `.env`:
 
 ```env
-PUBLIC_SIFT_API_URL=http://127.0.0.1:8000
+VITE_API_URL=http://localhost:8000
 ```
 
 > **Note**: Ensure the Sift FastAPI server is running with CORS enabled for `http://localhost:5173` and `http://127.0.0.1:5173` (configured by default in `app.py`).
 
-### 3. Start the Development Server
+#### 3. Start the Development Server
 
 ```bash
 npm run dev

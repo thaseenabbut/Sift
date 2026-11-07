@@ -1,8 +1,8 @@
 # Sift
 
-Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, and MongoDB. It crawls web pages with `robots.txt` compliance, extracts content, builds an inverted index with positional tracking, and ranks results using the BM25 probabilistic relevance algorithm.
+Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, MongoDB, and Redis. It crawls web pages with `robots.txt` compliance, extracts content, builds an inverted index with positional tracking, caches query results in Redis, and ranks results using the BM25 probabilistic relevance algorithm.
 
-Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API with full pagination support.
+Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API with full pagination support and Docker containerization.
 
 ---
 
@@ -11,6 +11,8 @@ Sift features both an interactive command-line interface with rich terminal form
 - **Web Crawling & Discovery**: Asynchronous crawler with `robots.txt` adherence (`urllib.robotparser`), per-domain crawl delays, and SHA-256 content hash deduplication.
 - **Inverted Index with Positional Data**: Stores term frequencies, document frequencies, and word position lists (`positions`) in MongoDB to enable precise exact phrase search and proximity checks.
 - **BM25 Ranking Algorithm**: Probabilistic relevance scoring with configurable parameters ($k_1 = 1.2, b = 0.75$), document length normalization, and cached inverse document frequencies (IDF).
+- **Redis Result Caching**: High-performance caching layer in Redis for search query responses and term data, keyed by query hash, BM25 parameters ($k_1, b$), and index version with automated cache recovery and connection health checks.
+- **Docker & Docker Compose Containerization**: Production-ready multi-service container setup (`Dockerfile` for backend, `Dockerfile` for frontend, and `docker-compose.yaml`) coordinating MongoDB 8.0, Redis 7 Alpine, the FastAPI search backend, and the React frontend with health checks and persistent volume storage.
 - **Advanced Query Operators**:
   - Required terms (`+python`) and excluded terms (`-java`)
   - Exact phrase matching (`"machine learning"`)
@@ -31,13 +33,17 @@ Sift features both an interactive command-line interface with rich terminal form
 
 ```text
 Sift/
+├── .dockerignore            Root Docker build ignore rules
+├── Dockerfile               Backend Python/FastAPI container definition
+├── docker-compose.yaml      Multi-container orchestration (MongoDB, Redis, Backend, Frontend)
 ├── app.py                   FastAPI server entry point and lifespan manager
 ├── main.py                  CLI entry point for crawling, indexing, and interactive search
 ├── pyproject.toml           Python package configuration and dependencies
 ├── src/
 │   ├── api/                 FastAPI web package
-│   │   ├── routes.py        HTTP route definitions (/search with pagination)
+│   │   ├── routes.py        HTTP route definitions (/search with pagination and Redis cache)
 │   │   └── schemas.py       Pydantic request and response schemas
+│   ├── cache.py             Redis search result caching and cache-key generation
 │   ├── crawler.py           Web crawler, robots.txt handler, and seed processor
 │   ├── document_parser.py   HTML parsing and SHA-256 content hashing
 │   ├── indexer.py           Inverted-index builder and delta updater
@@ -55,16 +61,19 @@ Sift/
 │   ├── page.py              Page document schema (title, clean text, content hash)
 │   └── search_index.py      TermDocument, Posting, and IndexStats schemas
 ├── storage/
-│   └── mongodb.py           MongoDB connection lifecycle and Beanie initialization
+│   ├── mongodb.py           MongoDB connection lifecycle and Beanie initialization
+│   └── redis.py             Redis connection manager and health check background task
 ├── frontend/                React 19 + TypeScript + Vite web interface
-   ├── src/
-   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
-   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
-   │   ├── lib/             API client with pagination and query parser
-   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
-   │   └── App.tsx          Main search interface state and layout
-   ├── package.json         Frontend dependencies and build scripts
-   └── README.md            Dedicated frontend documentation
+│   ├── .dockerignore        Frontend Docker build ignore rules
+│   ├── Dockerfile           Frontend Node/Vite development container definition
+│   ├── src/
+│   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
+│   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
+│   │   ├── lib/             API client with pagination, query parser, and favicon hooks
+│   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
+│   │   └── App.tsx          Main search interface state and layout
+│   ├── package.json         Frontend dependencies and build scripts
+│   └── README.md            Dedicated frontend documentation
 
 ```
 
@@ -91,15 +100,101 @@ Sift supports a Google-like search syntax:
 
 ## Getting Started
 
-### Prerequisites
-
-- **Python**: 3.11 or newer
-- **MongoDB**: 6.0+ (running locally or via Docker)
-- **Node.js**: 18+ and npm (optional, for running the React frontend)
+You can run Sift using **Docker Compose** (recommended for a one-command full-stack setup) or set up the components **manually for local development**.
 
 ---
 
-### 1. Clone Repository & Setup Virtual Environment
+### Option A: Quick Start with Docker Compose (Recommended)
+
+Docker Compose orchestrates the entire four-service Sift stack:
+
+| Service | Image / Build | Port | Description |
+|---|---|---|---|
+| `mongodb` | `mongo:8.0` | `27017:27017` | Document database with healthcheck and persistent volume `mongodb_data` |
+| `redis` | `redis:7-alpine` | `6379:6379` | In-memory cache for search queries with healthcheck |
+| `backend` | `./Dockerfile` (`python:3.14-slim`) | `8000:8000` | FastAPI application with Beanie ODM and Redis client |
+| `frontend` | `./frontend/Dockerfile` (`node:22-alpine`) | `5173:5173` | React 19 + Vite web interface bound to `0.0.0.0` |
+
+#### 1. Configure Environment
+
+Create a `.env` file in the repository root:
+
+```env
+MONGO_URI=mongodb://localhost:27017/sift
+DATABASE_NAME=sift
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+```
+
+*(When running inside Docker Compose, the `backend` container automatically overrides `MONGO_URI` to `mongodb://mongodb:27017/sift` and `REDIS_HOST` to `redis` via service discovery.)*
+
+#### 2. Build and Start the Stack
+
+```bash
+docker compose up --build
+```
+
+Or run in detached mode in the background:
+
+```bash
+docker compose up -d --build
+```
+
+#### 3. Access Services
+
+- **Web Search Interface**: [http://localhost:5173](http://localhost:5173)
+- **FastAPI REST API**: [http://localhost:8000](http://localhost:8000)
+- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Alternative ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+#### 4. Run Crawler & CLI inside Docker
+
+To crawl seed pages and build the search index from inside the running backend container:
+
+```bash
+docker compose exec backend python main.py
+```
+
+To force a re-crawl and refresh of existing indexed pages:
+
+```bash
+docker compose exec backend python main.py --refresh
+```
+
+#### 5. Run Tests inside Docker
+
+```bash
+docker compose exec backend pytest
+```
+
+#### 6. Stop the Stack
+
+```bash
+docker compose down
+```
+
+To stop containers and also delete the persistent MongoDB data volume:
+
+```bash
+docker compose down -v
+```
+
+---
+
+### Option B: Local Development (Without Docker)
+
+#### Prerequisites
+
+- **Python**: 3.11 or newer
+- **MongoDB**: 6.0+ (running locally or via `docker compose up -d mongodb`)
+- **Redis**: 7.0+ (running locally or via `docker compose up -d redis`)
+- **Node.js**: 18+ and npm (for running the React frontend)
+
+---
+
+#### 1. Clone Repository & Setup Virtual Environment
 
 ```bash
 git clone https://github.com/thaseenabbut/Sift.git
@@ -110,46 +205,57 @@ source .venv/bin/activate
 
 ---
 
-### 2. Install Python Dependencies
+#### 2. Install Python Dependencies
 
-Install Sift in editable mode with development/test dependencies:
+Install Sift in editable mode with test dependencies:
 
 ```bash
 pip install -e ".[test]"
 ```
 
-Or install the required packages directly:
+Or install all runtime dependencies directly:
 
 ```bash
-pip install fastapi uvicorn[standard] motor beanie beautifulsoup4 nltk rich requests tldextract pydantic pytest pytest-asyncio httpx
+pip install fastapi uvicorn[standard] beanie motor pymongo redis python-dotenv beautifulsoup4 requests urllib3 rich nltk tldextract pydantic pytest pytest-asyncio httpx
 ```
 
 *Note: Sift automatically downloads required NLTK tokenizers upon first run.*
 
 ---
 
-### 3. Start MongoDB
+#### 3. Start MongoDB & Redis
 
-If MongoDB is not installed as a system service, start an instance via Docker:
+If MongoDB and Redis are not running as system services, start just the databases with Docker:
 
 ```bash
-docker run -d --name sift-mongo -p 27017:27017 mongo:latest
+docker compose up -d mongodb redis
+```
+
+Or start them individually:
+
+```bash
+docker run -d --name sift-mongodb -p 27017:27017 mongo:8.0
+docker run -d --name sift-redis -p 6379:6379 redis:7-alpine
 ```
 
 ---
 
-### 4. Configure Environment Variables
+#### 4. Configure Environment Variables
 
 Create a `.env` file in the repository root:
 
 ```env
-MONGO_URI=mongodb://localhost:27017
+MONGO_URI=mongodb://localhost:27017/sift
 DATABASE_NAME=sift
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 ```
 
 ---
 
-### 5. Run the Crawler & CLI
+#### 5. Run the Crawler & CLI
 
 To crawl seed pages, build the index, and launch the interactive terminal search shell:
 
@@ -167,23 +273,24 @@ Type `exit`, `quit`, or press `Ctrl-C` to exit the CLI loop.
 
 ---
 
-### 6. Run the FastAPI REST Server
+#### 6. Run the FastAPI REST Server
 
 Start the API server:
 
 ```bash
 uvicorn app:app --reload
 ```
+*(or run `python app.py`)*
 
-- **API Base**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **Alternative ReDoc**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- **API Base**: [http://localhost:8000](http://localhost:8000)
+- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Alternative ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
-### 7. Run the React Frontend Web UI
+#### 7. Run the React Frontend Web UI
 
-In a new terminal window:
+In a separate terminal window:
 
 ```bash
 cd frontend
@@ -195,7 +302,7 @@ Open your browser to **[http://localhost:5173](http://localhost:5173)** to acces
 
 ---
 
-### 8. Run Automated Tests
+#### 8. Run Automated Tests
 
 Run the test suite using `pytest`:
 
