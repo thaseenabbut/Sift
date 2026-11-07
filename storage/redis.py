@@ -1,4 +1,5 @@
 import os
+import asyncio
 from dotenv import load_dotenv
 
 import redis.asyncio as redis
@@ -21,20 +22,15 @@ class RedisManager:
                 host= os.getenv('REDIS_HOST'),
                 port= int(os.getenv('REDIS_PORT')),
                 password= os.getenv('REDIS_PASSWORD'),
-                db= int(os.getenv('REDIS_DB'))
+                db= int(os.getenv('REDIS_DB')),
             )
             
             await self.redis_client.ping()
-            print("[bold green][CONNECTED][/bold green] Redis connected!")
+            print("[bold green][CONNECTED][/bold green] Redis connected")
         
         except RedisError as e:
             print("[bold red][ERROR][/bold red] Could not connect to Redis: ", e)
-            
-            if self.redis_client:
-                await self.redis_client.aclose()
-                print("[bold red][DISCONNECTED][/bold red] Redis connection closed due to error.")
-                self.redis_client = None
-                
+            self.redis_client = None
             return None
         
         return self.redis_client
@@ -42,8 +38,8 @@ class RedisManager:
     async def close_redis(self):
         try:
             if self.redis_client:
-                await self.redis_client.close()
+                await self.redis_client.aclose()
                 self.redis_client = None
-                print("[bold green][DISCONNECTED][/bold green] Redis connection closed!")
+                print("[bold red][DISCONNECTED][/bold red] Redis connection closed")
         except Exception as e:
             print("[bold red][ERROR][/bold red] Could not close Redis connection: ", e)
