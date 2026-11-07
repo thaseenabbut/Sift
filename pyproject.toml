@@ -19,8 +19,20 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-  "fastapi>=0.100.0",
-  "uvicorn[standard]>=0.20.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "beanie",
+    "motor",
+    "pymongo",
+    "redis",
+    "python-dotenv",
+    "beautifulsoup4",
+    "requests",
+    "urllib3",
+    "rich",
+    "nltk",
+    "tldextract",
+    "pydantic",
 ]
 
 [project.optional-dependencies]
