@@ -1,5 +1,7 @@
 import type { SearchResponse } from '../types/search'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 export async function searchSift(query: string, page = 1): Promise<SearchResponse> {
 
   const params = new URLSearchParams({
@@ -8,7 +10,7 @@ export async function searchSift(query: string, page = 1): Promise<SearchRespons
   })
 
   const response = await fetch(
-    `http://127.0.0.1:8000/search?${params.toString()}`
+    `${API_URL}/search?${params.toString()}`
   )
 
   if (!response.ok) {
