@@ -61,7 +61,15 @@ async def main(refresh_existing=False):
                 max_pages=20,
                 refresh_existing=refresh_existing,
             )
-        print(f"Indexed {crawled} page(s).")
+            if crawled > 0:
+                stats = await IndexStats.find_one({"id_name": "global_stats"})
+                
+                if stats is not None:
+                    stats.index_version += 1
+                    await stats.save()
+                    print(f"[bold green][INDEX VERSION][/bold green] Updated to v{stats.index_version}")
+                    
+            print(f"Indexed {crawled} page(s).")
     elif not stats or stats.total_documents == 0:
         print("No index found and no seed URLs to crawl.")
     else:
