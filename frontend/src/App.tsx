@@ -6,6 +6,7 @@ import { searchSift } from './lib/api'
 import { getHighlightTerms, parseQuery } from './lib/query'
 import { SearchBar } from './components/SearchBar'
 import { SearchResults } from './components/SearchResults'
+import { ServiceUnavailable } from './pages/ServiceUnavailable'
 
 const PAGE_SIZE = 10
 
@@ -22,6 +23,8 @@ function App() {
   const [status, setStatus] = useState<Status>(urlQuery ? 'loading' : 'idle')
   const [response, setResponse] = useState<SearchResponse | null>(null)
   const [error, setError] = useState('')
+  const [isUnavailable, setIsUnavailable] = useState(false)
+  const [retryTrigger, setRetryTrigger] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const requestId = useRef(0)
@@ -44,12 +47,14 @@ function App() {
       setStatus('idle')
       setResponse(null)
       setError('')
+      setIsUnavailable(false)
       return
     }
 
     const id = ++requestId.current
     setStatus('loading')
     setError('')
+    setIsUnavailable(false)
 
     searchSift(trimmed, urlPage)
       .then((data) => {
@@ -59,10 +64,11 @@ function App() {
       })
       .catch((err) => {
         if (id !== requestId.current) return
-        setError(err instanceof Error ? err.message : 'Something went wrong.')
+        setIsUnavailable(true)
+        setError(err instanceof Error ? err.message : 'Search service is temporarily unavailable.')
         setStatus('error')
       })
-  }, [urlQuery, urlPage])
+  }, [urlQuery, urlPage, retryTrigger])
 
   const handleSearch = useCallback((raw: string) => {
     const trimmed = raw.trim()
@@ -77,16 +83,35 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [navigate, urlQuery])
 
-  const goHome = () => {
+  const goHome = useCallback(() => {
     requestId.current++
+    setIsUnavailable(false)
+    setError('')
+    setResponse(null)
+    setStatus('idle')
     navigate('/')
     inputRef.current?.focus()
-  }
+  }, [navigate])
+
+  const handleRetry = useCallback(() => {
+    setIsUnavailable(false)
+    setRetryTrigger((prev) => prev + 1)
+  }, [])
 
   const highlightTerms = useMemo(() => getHighlightTerms(parseQuery(urlQuery)), [urlQuery])
   const totalPages = response ? Math.max(1, Math.ceil(response.total / PAGE_SIZE)) : 1
 
   const mode = location.pathname === '/search' && urlQuery ? 'results' : 'home'
+
+  if (isUnavailable) {
+    return (
+      <ServiceUnavailable
+        onRetry={handleRetry}
+        homeHref="/"
+        onHome={goHome}
+      />
+    )
+  }
 
   return (
     <div className="sift">
