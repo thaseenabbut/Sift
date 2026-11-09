@@ -40,6 +40,16 @@ async def main(refresh_existing=False):
         "https://thaseenabbut.github.io/LazaBot-Legal/",
         "apple.com",
         "amazon.com",
+        "https://en.wikipedia.org/wiki/Paris",
+        "https://en.wikipedia.org/wiki/France",
+        "https://en.wikipedia.org/wiki/Solar_System",
+        "https://en.wikipedia.org/wiki/Pacific_Ocean",
+        "https://en.wikipedia.org/wiki/Speed_of_light",
+        "https://en.wikipedia.org/wiki/George_Washington",
+        "https://en.wikipedia.org/wiki/Sahara",
+        "https://en.wikipedia.org/wiki/Photosynthesis",
+        "https://en.wikipedia.org/wiki/Leonardo_da_Vinci",
+        "https://en.wikipedia.org/wiki/Boiling_point",
     ]
     
     indexed_urls = await already_indexed_urls()
