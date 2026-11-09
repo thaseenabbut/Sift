@@ -2,11 +2,12 @@ import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import { Link, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import './App.css'
 import type { SearchResponse, Status } from './types/search'
-import { searchSift } from './lib/api'
+import { ApiError, searchSift } from './lib/api'
 import { getHighlightTerms, parseQuery } from './lib/query'
 import { SearchBar } from './components/SearchBar'
 import { SearchResults } from './components/SearchResults'
-import { ServiceUnavailable } from './pages/ServiceUnavailable'
+import { ServiceUnavailable } from './pages/service-unavailable'
+import { TooManyRequests } from './pages/too-many-requests'
 
 const PAGE_SIZE = 10
 
@@ -24,6 +25,8 @@ function App() {
   const [response, setResponse] = useState<SearchResponse | null>(null)
   const [error, setError] = useState('')
   const [isUnavailable, setIsUnavailable] = useState(false)
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [retryAfter, setRetryAfter] = useState<number | undefined>(undefined)
   const [retryTrigger, setRetryTrigger] = useState(0)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -48,6 +51,8 @@ function App() {
       setResponse(null)
       setError('')
       setIsUnavailable(false)
+      setIsRateLimited(false)
+      setRetryAfter(undefined)
       return
     }
 
@@ -55,6 +60,8 @@ function App() {
     setStatus('loading')
     setError('')
     setIsUnavailable(false)
+    setIsRateLimited(false)
+    setRetryAfter(undefined)
 
     searchSift(trimmed, urlPage)
       .then((data) => {
@@ -64,6 +71,12 @@ function App() {
       })
       .catch((err) => {
         if (id !== requestId.current) return
+        if (err instanceof ApiError && err.status === 429) {
+          setIsRateLimited(true)
+          setRetryAfter(err.retryAfter)
+          setStatus('error')
+          return
+        }
         setIsUnavailable(true)
         setError(err instanceof Error ? err.message : 'Search service is temporarily unavailable.')
         setStatus('error')
@@ -86,6 +99,8 @@ function App() {
   const goHome = useCallback(() => {
     requestId.current++
     setIsUnavailable(false)
+    setIsRateLimited(false)
+    setRetryAfter(undefined)
     setError('')
     setResponse(null)
     setStatus('idle')
@@ -95,6 +110,8 @@ function App() {
 
   const handleRetry = useCallback(() => {
     setIsUnavailable(false)
+    setIsRateLimited(false)
+    setRetryAfter(undefined)
     setRetryTrigger((prev) => prev + 1)
   }, [])
 
@@ -102,6 +119,15 @@ function App() {
   const totalPages = response ? Math.max(1, Math.ceil(response.total / PAGE_SIZE)) : 1
 
   const mode = location.pathname === '/search' && urlQuery ? 'results' : 'home'
+
+  if (isRateLimited) {
+    return (
+      <TooManyRequests
+        retryAfter={retryAfter}
+        onRetry={handleRetry}
+      />
+    )
+  }
 
   if (isUnavailable) {
     return (
