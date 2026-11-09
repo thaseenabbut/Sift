@@ -2,7 +2,7 @@ import hashlib
 import json
 from rich import print
 
-def generate_cache_key(query, bm25_parameters, index_version):
+def generate_cache_key(query, bm25_parameters, index_version, proximity_weight):
     query_hash = hashlib.sha256(
         query.encode("utf-8")
     ).hexdigest()
@@ -10,7 +10,7 @@ def generate_cache_key(query, bm25_parameters, index_version):
     k1 = bm25_parameters["k1"]
     b = bm25_parameters["b"]
 
-    return f"sift:search:v{index_version}:{query_hash}:k1={k1}:b={b}"
+    return f"sift:search:v{index_version}:{query_hash}:k1={k1}:b={b}:proximity={proximity_weight}"
 
 async def get_cached_results(redis_manager, cache_key):
     if redis_manager.redis_client is None:

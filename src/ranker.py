@@ -5,6 +5,8 @@ bm25_parameters = {
     "b": 0.75
 }
 
+proximity_weight = 2.0
+
 def collect_ranking_terms(parsed):
     unique = []
     seen = set()
@@ -49,17 +51,87 @@ def calculate_bm25(term, document_id, term_lookup, stats, bm25_parameters, idf):
     return idf * (numerator / denominator)
 
 
+def calculate_proximity_bonus(term_positions):
+    if not term_positions or len(term_positions) < 2:
+        return 0.0
+
+    if any(not positions for positions in term_positions):
+        return 0.0
+
+    all_positions = sorted(
+        (position, term_index)
+        for term_index, positions in enumerate(term_positions)
+        for position in positions
+    )
+
+    left = 0
+    term_counts = {}
+    terms_covered = 0
+    min_window = float("inf")
+
+    for right in range(len(all_positions)):
+        position, term_index = all_positions[right]
+
+        term_counts[term_index] = term_counts.get(term_index, 0) + 1
+
+        if term_counts[term_index] == 1:
+            terms_covered += 1
+
+        while terms_covered == len(term_positions):
+            window_size = (
+                all_positions[right][0] - all_positions[left][0] + 1
+            )
+            min_window = min(min_window, window_size)
+
+            left_term = all_positions[left][1]
+            term_counts[left_term] -= 1
+
+            if term_counts[left_term] == 0:
+                terms_covered -= 1
+
+            left += 1
+
+    if min_window == float("inf"):
+        return 0.0
+
+    return proximity_weight / min_window
+
+
 def score_document(query_terms, document_id, term_lookup, stats, bm25_parameters, idf_cache):
-    score = 0.0
+    bm25_score = 0.0
+    term_positions = []
+    seen_terms = set()
+    
     for term in query_terms:
         stemmed_term = term.stemmed
-        if stemmed_term in term_lookup and document_id in term_lookup[stemmed_term].postings_by_url:
-            score += calculate_bm25(
-                stemmed_term,
-                document_id,
-                term_lookup,
-                stats,
-                bm25_parameters,
-                idf_cache[stemmed_term],
-            )
-    return score
+        
+        if stemmed_term in seen_terms:
+            continue
+        seen_terms.add(stemmed_term)
+        
+        if stemmed_term not in term_lookup:
+            term_positions.append([])
+            continue
+        
+        positions = term_lookup[stemmed_term].postings_by_url.get(document_id, None)
+        
+        if not positions:
+            term_positions.append([])
+            continue
+            
+        bm25_score += calculate_bm25(
+            stemmed_term,
+            document_id,
+            term_lookup,
+            stats,
+            bm25_parameters,
+            idf_cache[stemmed_term],
+        )
+        
+        term_positions.append(positions.positions)
+            
+    proximity_bonus = calculate_proximity_bonus(term_positions)
+    
+    final_score = bm25_score + proximity_bonus
+    
+    return final_score

@@ -5,6 +5,7 @@ from pymongo.errors import PyMongoError
 
 from src.search import search
 from src.ranker import bm25_parameters
+from src.ranker import proximity_weight
 from src.api.schemas import SearchResponse
 
 router = APIRouter()
@@ -28,7 +29,7 @@ async def get_search(
         
     try:
         redis_manager = request.app.state.redis_manager
-        results = await search(query, bm25_parameters, redis_manager)
+        results = await search(query, bm25_parameters, redis_manager, proximity_weight)
         
     except PyMongoError:
         logger.exception("Database error while processing search query.")

@@ -7,13 +7,13 @@ from schemas.search_index import TermDocument, IndexStats
 from schemas.page import Page
 from rich import print
 
-async def search(query, bm25_parameters, redis_manager):
+async def search(query, bm25_parameters, redis_manager, proximity_weight):
     stats = await IndexStats.find_one({"id_name": "global_stats"})
     if not stats:
         print("Search index stats not found. Have you crawled and indexed yet?")
         return
     
-    key = generate_cache_key(query, bm25_parameters, stats.index_version)
+    key = generate_cache_key(query, bm25_parameters, stats.index_version, proximity_weight)
         
     try:
         cached_results = await get_cached_results(redis_manager, key)
