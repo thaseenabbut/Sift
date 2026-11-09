@@ -42,3 +42,5 @@ class RedisManager:
                 print("[bold red][DISCONNECTED][/bold red] Redis connection closed")
         except Exception as e:
             print("[bold red][ERROR][/bold red] Could not close Redis connection: ", e)
+
+redis_manager = RedisManager()
