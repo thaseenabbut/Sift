@@ -1,1 +1,0 @@
-# Sift test suite
