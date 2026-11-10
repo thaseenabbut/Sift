@@ -1,4 +1,5 @@
 import logging
+import math
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pymongo.errors import PyMongoError
@@ -25,6 +26,21 @@ async def get_search(
         raise HTTPException(
             status_code=400,
             detail="Search query cannot be empty.",
+        )
+        
+    rate_limiter = request.app.state.rate_limiter
+    client_ip = request.client.host if request.client else "unknown"
+
+    if not await rate_limiter.consume(client_ip):
+        _, remaining, retry_after = await rate_limiter.check(client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please try again later.",
+            headers={
+                "Retry-After": str(math.ceil(retry_after)),
+                "X-RateLimit-Limit": str(rate_limiter.max_tokens),
+                "X-RateLimit-Remaining": str(remaining),
+            },
         )
         
     try:

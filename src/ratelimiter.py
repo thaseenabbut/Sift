@@ -1,0 +1,188 @@
+import math
+import time
+import threading
+
+from dataclasses import dataclass
+
+import redis.asyncio as redis
+
+class TokenBucket:
+    
+    def __init__(self, max_tokens: int, refill_rate: float, interval: float):
+        
+        assert max_tokens > 0, "max_tokens must be positive"
+        assert refill_rate > 0, "refill_rate must be positive"
+        assert interval > 0, "interval must be positive"
+        
+        self.max_tokens = max_tokens
+        self.refill_rate = refill_rate
+        self.interval = interval
+        
+        self.tokens = max_tokens
+        self.last_refill_at = time.monotonic()
+        self.lock = threading.Lock()
+        
+    @dataclass(frozen=True)
+    class RateLimitResult:
+        allowed: bool
+        retry_after: float
+        remaining: int
+
+    def _refill(self) -> None:
+        now = time.monotonic()
+        elapsed = now - self.last_refill_at
+        if elapsed > 0:
+            refill_amount = int(elapsed * self.refill_rate / self.interval)
+            if refill_amount > 0:
+                self.tokens = min(self.max_tokens, self.tokens + refill_amount)
+                self.last_refill_at += refill_amount * self.interval / self.refill_rate
+
+    def consume(self, tokens: int) -> bool:
+        with self.lock:
+            self._refill()
+            
+            if tokens <= 0:
+                raise ValueError("tokens must be positive")
+            
+            if tokens > self.max_tokens:
+                raise ValueError("tokens cannot exceed max_tokens")
+
+            if self.tokens >= tokens:
+                self.tokens -= tokens
+                return True
+            else:
+                return False
+
+    def retry_after(self, tokens: int) -> float:
+        with self.lock:
+            self._refill()
+
+            if self.tokens >= tokens:
+                return 0.0
+            else:
+                needed_tokens = tokens - self.tokens
+                return needed_tokens * self.interval / self.refill_rate
+
+
+class RedisRateLimiter:
+    
+    TOKEN_BUCKET_LUA = """
+local key = KEYS[1]
+local max_tokens = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local interval = tonumber(ARGV[3])
+local requested = tonumber(ARGV[4])
+local should_consume = tonumber(ARGV[5]) == 1
+local ttl = tonumber(ARGV[6])
+
+local now = redis.call('TIME')
+local now_seconds = tonumber(now[1]) + tonumber(now[2]) / 1000000
+
+local stored = redis.call('HMGET', key, 'tokens', 'last_refill_at')
+local tokens = tonumber(stored[1])
+local last_refill_at = tonumber(stored[2])
+
+if tokens == nil or last_refill_at == nil then
+  tokens = max_tokens
+  last_refill_at = now_seconds
+end
+
+local elapsed = now_seconds - last_refill_at
+if elapsed > 0 then
+  local refill_amount = math.floor(elapsed * refill_rate / interval)
+  if refill_amount > 0 then
+    tokens = math.min(max_tokens, tokens + refill_amount)
+    last_refill_at = last_refill_at + refill_amount * interval / refill_rate
+  end
+end
+
+local allowed = 0
+if tokens >= requested then
+  allowed = 1
+  if should_consume then
+    tokens = tokens - requested
+  end
+end
+
+if should_consume then
+  redis.call(
+    'HSET', key,
+    'tokens', tostring(tokens),
+    'last_refill_at', tostring(last_refill_at)
+  )
+  redis.call('EXPIRE', key, ttl)
+end
+
+local retry_after = 0
+if allowed == 0 then
+  retry_after = math.ceil((requested - tokens) * interval / refill_rate)
+end
+
+return {allowed, math.floor(tokens), retry_after}
+"""
+
+    def __init__(
+        self,
+        redis_client: redis.Redis,
+        max_tokens: int,
+        refill_rate: float,
+        interval: float,
+        key_prefix: str = "sift:ratelimit:",
+        key_ttl: int | None = None,
+    ):
+        
+        assert max_tokens > 0, "max_tokens must be positive"
+        assert refill_rate > 0, "refill_rate must be positive"
+        assert interval > 0, "interval must be positive"
+                
+        self.redis_client = redis_client
+        self.max_tokens = max_tokens
+        self.refill_rate = refill_rate
+        self.interval = interval
+        self.key_prefix = key_prefix
+        self.key_ttl = (
+            key_ttl
+            if key_ttl is not None
+            else max(1, math.ceil(max_tokens * interval / refill_rate))
+        )
+        self._script = redis_client.register_script(self.TOKEN_BUCKET_LUA)
+
+    def _key(self, client_ip: str) -> str:
+        return f"{self.key_prefix}{client_ip}"
+
+    async def _evaluate(self, client_ip: str, tokens: int, consume: bool) -> tuple[bool, int, float]:
+        allowed, remaining, retry_after = await self._script(
+            keys=[self._key(client_ip)],
+            args=[
+                self.max_tokens,
+                self.refill_rate,
+                self.interval,
+                tokens,
+                1 if consume else 0,
+                self.key_ttl,
+            ],
+        )
+        return bool(allowed), int(remaining), float(retry_after)
+
+    async def check(self, client_ip: str, tokens: int = 1) -> tuple[bool, int, float]:
+        """Report whether `tokens` are available without spending any.
+
+        Returns (allowed, remaining_tokens, retry_after_seconds). Must stay
+        read-only: retry_after() and the 429 path both rely on it not mutating.
+        """
+        return await self._evaluate(client_ip, tokens, consume=False)
+
+    async def consume(self, client_ip: str, tokens: int = 1) -> bool:
+        
+        if tokens <= 0:
+            raise ValueError("tokens must be positive")
+                    
+        if tokens > self.max_tokens:
+            raise ValueError("tokens cannot exceed max_tokens")
+                    
+        allowed, _, _ = await self._evaluate(client_ip, tokens, consume=True)
+        return allowed
+
+    async def retry_after(self, client_ip: str, tokens: int = 1) -> float:
+        _, _, retry_after = await self.check(client_ip, tokens)
+        return retry_after
