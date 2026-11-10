@@ -66,9 +66,9 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup, result_d
         }
         snippet = generate_snippet(doc, query_terms, positions, snippet_length=20, lead=3)
         highlighted_snippet = highlighting_terms(snippet, query_terms)
-        print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
-        print(f"[dim]{highlighted_snippet}[/dim]")
-        print("\n")
+        # print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
+        # print(f"[dim]{highlighted_snippet}[/dim]")
+        # print("\n")
         
         result_data.append({
             "title": doc.title,
@@ -76,3 +76,5 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup, result_d
             "snippet": snippet,
             "score": score,
         })
+
+    print(f"[bold green][SEARCH SUCCESS][/bold green] Found {len(ranked_results)} results for query.")

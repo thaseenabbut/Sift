@@ -1,8 +1,11 @@
 import logging
 import math
+import time
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pymongo.errors import PyMongoError
+from rich import print
+from rich.markup import escape
 
 from src.search import search
 from src.ranker import bm25_parameters
@@ -20,9 +23,11 @@ async def get_search(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
 ):
+    started = time.perf_counter()
     query = q.strip()
 
     if not query:
+        print("[bold yellow][SEARCH][/bold yellow] rejected an empty query")
         raise HTTPException(
             status_code=400,
             detail="Search query cannot be empty.",
@@ -33,6 +38,10 @@ async def get_search(
 
     if not await rate_limiter.consume(client_ip):
         _, remaining, retry_after = await rate_limiter.check(client_ip)
+        print(
+            f"[bold red][RATE LIMITED][/bold red] client={client_ip} "
+            f'q="{escape(query)}" retry_after={math.ceil(retry_after)}s'
+        )
         raise HTTPException(
             status_code=429,
             detail="Too many requests. Please try again later.",
