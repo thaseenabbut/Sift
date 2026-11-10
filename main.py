@@ -7,11 +7,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.crawler import crawl, already_indexed_urls, filter_seed_urls
 from src.search import search
-from src.ranker import bm25_parameters
+from src.ranker import bm25_parameters, proximity_weight
 
 from rich import print
 from rich.console import Console
 
+from storage.redis import redis_manager
 from storage.mongodb import db_manager
 from schemas.search_index import IndexStats
 
@@ -27,6 +28,7 @@ def parse_args():
     return parser.parse_args()
 
 async def main(refresh_existing=False):
+    await redis_manager.connect_redis()
     await db_manager.connect_and_init()
     stats = await IndexStats.find_one({"id_name": "global_stats"})
 
@@ -95,8 +97,8 @@ async def main(refresh_existing=False):
                 break
             if not query:
                 continue
-                
-            await search(query, bm25_parameters)
+            
+            await search(query, bm25_parameters, redis_manager, proximity_weight)
             
         except KeyboardInterrupt:
             print("[bold red]Exiting...[/bold red]")
@@ -106,6 +108,7 @@ async def main(refresh_existing=False):
         except Exception as e:
             console.print_exception()
             
+    await redis_manager.close_redis()
     await db_manager.close_connection()
 
 if __name__ == "__main__":
