@@ -14,7 +14,7 @@ class RedisManager:
         self.redis_client = None
         
     async def connect_redis(self):
-        print("[bold green][CONNECTING][/bold green] Connecting to Redis...")
+        print("[bold green][CONNECTING REDIS][/bold green] Connecting to Redis...")
         
         try:
             self.redis_client = redis.Redis(
@@ -25,10 +25,10 @@ class RedisManager:
             )
             
             await self.redis_client.ping()
-            print("[bold green][CONNECTED][/bold green] Redis connected")
+            print("[bold green][CONNECTED REDIS][/bold green] Redis connected")
         
         except RedisError as e:
-            print("[bold red][ERROR][/bold red] Could not connect to Redis: ", e)
+            print("[bold red][CONNECTION REDIS FAILED][/bold red] Redis connection failed: ", e)
             self.redis_client = None
             return None
         
@@ -39,8 +39,8 @@ class RedisManager:
             if self.redis_client:
                 await self.redis_client.aclose()
                 self.redis_client = None
-                print("[bold red][DISCONNECTED][/bold red] Redis connection closed")
+                print("[bold red][DISCONNECTED REDIS][/bold red] Redis connection closed")
         except Exception as e:
-            print("[bold red][ERROR][/bold red] Could not close Redis connection: ", e)
+            print("[bold red][CONNECTION REDISCLOSE FAILED][/bold red] Redis connection close failed: ", e)
 
 redis_manager = RedisManager()

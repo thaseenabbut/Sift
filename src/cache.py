@@ -24,7 +24,7 @@ async def get_cached_results(redis_manager, cache_key):
             return None
 
     except Exception as e:
-        print(f"[bold red][ERROR][/bold red] Could not retrieve cache from Redis. {type(e).__name__}: {e}")
+        print(f"[bold red][RETRIEVE CACHE FAILED][/bold red] Could not retrieve cache from Redis. {type(e).__name__}: {e}")
         return None
     
 async def set_cached_results(redis_manager, cache_key, results, expiration=300):
@@ -36,5 +36,5 @@ async def set_cached_results(redis_manager, cache_key, results, expiration=300):
         )
         print(f"[bold green][CACHE SET][/bold green] Cache set for key: {cache_key} with expiration: {expiration} seconds.")
     except Exception as e:
-        print(f"[bold red][ERROR][/bold red] Could not set cache: {type(e).__name__}: {e}")
+        print(f"[bold red][SET CACHE FAILED][/bold red] Could not set cache: {type(e).__name__}: {e}")
         return None
