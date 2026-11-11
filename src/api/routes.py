@@ -4,6 +4,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pymongo.errors import PyMongoError
+from redis.exceptions import RedisError
 from rich import print
 from rich.markup import escape
 
@@ -35,9 +36,15 @@ async def get_search(
         
     rate_limiter = request.app.state.rate_limiter
     client_ip = request.client.host if request.client else "unknown"
+    
+    allowed = True
+    try:
+        allowed, remaining, retry_after = await rate_limiter.check(client_ip)
+    except RedisError:
+        print("[bold red][RATE LIMIT REDIS ERROR][/bold red] Redis unavailable; bypassing rate limiter")
 
-    if not await rate_limiter.consume(client_ip):
-        _, remaining, retry_after = await rate_limiter.check(client_ip)
+        
+    if not allowed:
         print(
             f"[bold red][RATE LIMITED][/bold red] client={client_ip} "
             f'q="{escape(query)}" retry_after={math.ceil(retry_after)}s'
@@ -51,7 +58,7 @@ async def get_search(
                 "X-RateLimit-Remaining": str(remaining),
             },
         )
-        
+    
     try:
         redis_manager = request.app.state.redis_manager
         results = await search(query, bm25_parameters, redis_manager, proximity_weight)

@@ -1,6 +1,8 @@
 import math
 import redis.asyncio as redis
 
+from rich import print
+
 
 class RedisRateLimiter:
     
@@ -83,32 +85,40 @@ return {allowed, math.floor(tokens), retry_after}
             if key_ttl is not None
             else max(1, math.ceil(max_tokens * interval / refill_rate))
         )
-        self._script = redis_client.register_script(self.TOKEN_BUCKET_LUA)
+        
+        try:
+            self._script = redis_client.register_script(self.TOKEN_BUCKET_LUA)
+        except Exception as e:
+            print(f"[bold yellow][WARNING][/bold yellow] Failed to register Lua script with Redis: {e}")
+            self._script = None
 
     def _key(self, client_ip: str) -> str:
         return f"{self.key_prefix}{client_ip}"
 
     async def _evaluate(self, client_ip: str, tokens: int, consume: bool) -> tuple[bool, int, float]:
-        allowed, remaining, retry_after = await self._script(
-            keys=[self._key(client_ip)],
-            args=[
-                self.max_tokens,
-                self.refill_rate,
-                self.interval,
-                tokens,
-                1 if consume else 0,
-                self.key_ttl,
-            ],
-        )
-        return bool(allowed), int(remaining), float(retry_after)
+        if self._script is None:
+            return False, 0, 0
+
+        try:
+          allowed, remaining, retry_after = await self._script(
+              keys=[self._key(client_ip)],
+              args=[
+                  self.max_tokens,
+                  self.refill_rate,
+                  self.interval,
+                  tokens,
+                  1 if consume else 0,
+                  self.key_ttl,
+              ],
+          )
+          return bool(allowed), int(remaining), float(retry_after)
+        except Exception as e:
+            print(f"[bold yellow][WARNING][/bold yellow] Failed to evaluate Lua script with Redis: {e}")
+            raise
 
     async def check(self, client_ip: str, tokens: int = 1) -> tuple[bool, int, float]:
-        """Report whether `tokens` are available without spending any.
-
-        Returns (allowed, remaining_tokens, retry_after_seconds). Must stay
-        read-only: retry_after() and the 429 path both rely on it not mutating.
-        """
         return await self._evaluate(client_ip, tokens, consume=False)
+        
 
     async def consume(self, client_ip: str, tokens: int = 1) -> bool:
         
