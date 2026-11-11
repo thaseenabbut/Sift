@@ -15,23 +15,23 @@ db_manager = DatabaseManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[bold green][API STARTUP][/bold green] Sift API is starting")
-    try:
-        redis_client = await redis_manager.connect_redis()
-        if redis_client is None:
-            print("[bold red][ERROR][/bold red] Redis is not reachable, so rate limiting cannot run; refusing to start")
-            raise RuntimeError("Failed to connect to Redis")
+    
+    redis_client = await redis_manager.connect_redis()
+    if redis_client is None:
+        print("[bold yellow][WARNING][/bold yellow] Redis connection failed. Rate limiting will be disabled.")
+        app.state.redis_manager = None
+        app.state.rate_limiter = None
         
-        app.state.redis_manager = redis_manager
-        app.state.rate_limiter = RedisRateLimiter(redis_client, max_tokens=60, refill_rate=1, interval=1)
-        await db_manager.connect_and_init()
-        
-        print("[bold green][API READY][/bold green] Sift API is accepting requests on port 8000")
-        yield
-        
-    finally:
-        print("[bold red][API SHUTDOWN][/bold red] Sift API is shutting down")
-        await redis_manager.close_redis()
-        await db_manager.close_connection()
+    app.state.redis_manager = redis_manager
+    app.state.rate_limiter = RedisRateLimiter(redis_client, max_tokens=60, refill_rate=1, interval=1)
+    
+    await db_manager.connect_and_init()
+    print("[bold green][API READY][/bold green] Sift API is accepting requests on port 8000")
+    yield
+    
+    print("[bold red][API SHUTDOWN][/bold red] Sift API is shutting down")
+    await redis_manager.close_redis()
+    await db_manager.close_connection()
 
 
 app = FastAPI(
