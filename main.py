@@ -33,26 +33,8 @@ async def main(refresh_existing=False):
     stats = await IndexStats.find_one({"id_name": "global_stats"})
 
     
-    seed_urls = [
-        "https://en.wikipedia.org/wiki/Python_(programming_language)",
-        "https://en.wikipedia.org/wiki/JavaScript",
-        "https://en.wikipedia.org/wiki/Programming_language",
-        "https://en.wikipedia.org/wiki/Software_engineering",
-        "https://en.wikipedia.org/wiki/Search_engine",
-        "https://thaseenabbut.github.io/LazaBot-Legal/",
-        "apple.com",
-        "amazon.com",
-        "https://en.wikipedia.org/wiki/Paris",
-        "https://en.wikipedia.org/wiki/France",
-        "https://en.wikipedia.org/wiki/Solar_System",
-        "https://en.wikipedia.org/wiki/Pacific_Ocean",
-        "https://en.wikipedia.org/wiki/Speed_of_light",
-        "https://en.wikipedia.org/wiki/George_Washington",
-        "https://en.wikipedia.org/wiki/Sahara",
-        "https://en.wikipedia.org/wiki/Photosynthesis",
-        "https://en.wikipedia.org/wiki/Leonardo_da_Vinci",
-        "https://en.wikipedia.org/wiki/Boiling_point",
-    ]
+    with open('data/seed_urls.txt', 'r') as f:
+        seed_urls = [line.strip() for line in f.readlines()]
     
     indexed_urls = await already_indexed_urls()
     urls_to_crawl = filter_seed_urls(seed_urls, indexed_urls, refresh_existing)
@@ -70,7 +52,7 @@ async def main(refresh_existing=False):
         with console.status("[bold green]Crawling and indexing pages...[/bold green]", spinner="dots"):
             crawled = await crawl(
                 urls_to_crawl,
-                max_pages=20,
+                max_pages=1000000,
                 refresh_existing=refresh_existing,
             )
             if crawled > 0:

@@ -325,7 +325,7 @@ def retry_request(url, retries=3):
         except requests.RequestException:
             return None
 
-async def crawl(seed_urls, max_pages=100, refresh_existing=False):
+async def crawl(seed_urls, max_pages=10000000, refresh_existing=False):
     if isinstance(seed_urls, str):
         seed_urls = [seed_urls]
     seed_urls = [normalized for url in seed_urls if (normalized := normalize_url(url))]
