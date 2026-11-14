@@ -5,6 +5,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 
 COPY src ./src
+COPY data/ ./data/
 COPY schemas ./schemas
 COPY storage ./storage
 COPY app.py main.py ./
