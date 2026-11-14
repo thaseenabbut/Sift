@@ -52,6 +52,8 @@ export function SearchResults({
   }
 
   const results = response?.results ?? []
+  const totalResults = response?.total ?? results.length
+  const timeTaken = response?.time_taken
 
   return (
     <main className="results" aria-busy={status === 'loading'}>
@@ -77,7 +79,8 @@ export function SearchResults({
       {status === 'done' && response && results.length > 0 && (
         <>
           <p className="summary" aria-live="polite">
-            {results.length} {results.length === 1 ? 'result' : 'results'} for “{submitted}”
+            About {totalResults.toLocaleString()} {totalResults === 1 ? 'result' : 'results'}
+            {typeof timeTaken === 'number' && ` (${timeTaken.toFixed(2)} seconds)`} for “{submitted}”
           </p>
           <ol className="result-list">
             {results.map((result) => (

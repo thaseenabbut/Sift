@@ -13,4 +13,5 @@ class SearchResponse(BaseModel):
     total: int
     page: int
     page_size: int
+    time_taken: float | None = None
     results: list[SearchResult]

@@ -86,6 +86,7 @@ async def get_search(
     total = len(results)
     start = (page - 1) * page_size
     page_results = results[start : start + page_size]
+    elapsed = time.perf_counter() - started
 
     return {
         "query": query,
@@ -93,5 +94,6 @@ async def get_search(
         "total": total,
         "page": page,
         "page_size": page_size,
+        "time_taken": round(elapsed, 3),
         "results": page_results,
     }

@@ -11,6 +11,7 @@ export type SearchResponse = {
   total: number
   page: number
   page_size: number
+  time_taken?: number
   results: SearchResult[]
 }
 
