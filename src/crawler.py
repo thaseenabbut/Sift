@@ -359,6 +359,10 @@ async def crawl(seed_urls, max_pages=10000000, refresh_existing=False):
         print(f"\n[bold blue][SiftBot][/bold blue] Crawling: {current_url}")
 
         response = retry_request(current_url)
+        
+        if response is not None:
+            response.encoding = response.apparent_encoding
+            
         if response is None:
             print(
                 f"\n[bold red][SiftBot][/bold red] Failed to crawl: {current_url}. "
