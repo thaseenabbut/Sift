@@ -10,9 +10,13 @@ Sift features both an interactive command-line interface with rich terminal form
 
 - **Web Crawling & Discovery**: Asynchronous crawler with `robots.txt` adherence (`urllib.robotparser`), per-domain crawl delays, and SHA-256 content hash deduplication.
 - **Inverted Index with Positional Data**: Stores term frequencies, document frequencies, and word position lists (`positions`) in MongoDB to enable precise exact phrase search and proximity checks.
-- **BM25 Ranking Algorithm**: Probabilistic relevance scoring with configurable parameters ($k_1 = 1.2, b = 0.75$), document length normalization, and cached inverse document frequencies (IDF).
-- **Redis Result Caching**: High-performance caching layer in Redis for search query responses and term data, keyed by query hash, BM25 parameters ($k_1, b$), and index version with automated cache recovery and connection health checks.
-- **Docker & Docker Compose Containerization**: Production-ready multi-service container setup (`Dockerfile` for backend, `Dockerfile` for frontend, and `docker-compose.yaml`) coordinating MongoDB 8.0, Redis 7 Alpine, the FastAPI search backend, and the React frontend with health checks and persistent volume storage.
+- **BM25 Ranking Algorithm with Proximity Scoring**: Probabilistic relevance scoring with configurable parameters ($k_1 = 1.2, b = 0.75$), document length normalization, cached inverse document frequencies (IDF), and sliding-window term proximity bonuses (`proximity_weight = 2.0`) to boost documents where query terms appear closer together.
+- **Redis Result Caching & Rate Limiting**:
+  - High-performance caching layer in Redis for search query responses and term data, keyed by query hash, BM25 parameters ($k_1, b$), proximity weight, and index version with automated cache recovery and connection health checks.
+  - Distributed token-bucket rate limiter (`RedisRateLimiter`) powered by atomic Lua scripts with client IP tracking, `429 Too Many Requests` responses (`Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` headers), and automatic fail-open resilience when Redis is unavailable.
+- **Search Latency & Performance Metrics**: Real-time server-side timing using high-resolution performance counters (`time_taken`), returned in API responses and surfaced cleanly in search summary views.
+- **Semantic Text Chunking & Embedding Pipeline**: Token-aware text chunking with sliding-window overlap (`Chunker`) and dense multilingual embeddings (`intfloat/multilingual-e5-small` via `SentenceTransformer`) alongside vector storage foundations.
+- **Docker & Docker Compose Containerization**: Production-ready multi-service container setup (`Dockerfile` for backend, `Dockerfile` for frontend, and `docker-compose.yaml`) coordinating MongoDB 8.0, Redis 7 Alpine, the FastAPI search backend, and the React frontend with health checks, persistent volume storage, and seed URL dataset ingestion.
 - **Advanced Query Operators**:
   - Required terms (`+python`) and excluded terms (`-java`)
   - Exact phrase matching (`"machine learning"`)
@@ -25,7 +29,7 @@ Sift features both an interactive command-line interface with rich terminal form
 - **FastAPI REST API**: Asynchronous search endpoint (`/search`) with pagination parameters, input validation, and interactive Swagger UI (`/docs`).
 - **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, modular component CSS, and skeleton loading states.
 - **Interactive Terminal CLI**: Built with `rich` for formatted results, clickable links, highlighted snippets, and interactive search loop.
-- **Automated Testing Suite**: Thorough API test suite in `tests/test_search_api.py` covering happy paths, input validation, database failure modes, and regression scenarios.
+- **Automated Testing Suite**: Unit and integration test suite (configured via `pytest` and `pytest-asyncio`) validating tokenization, text chunker sliding-window overlaps, indexing algorithms, and API contracts.
 
 ---
 
@@ -39,17 +43,25 @@ Sift/
 ├── app.py                   FastAPI server entry point and lifespan manager
 ├── main.py                  CLI entry point for crawling, indexing, and interactive search
 ├── pyproject.toml           Python package configuration and dependencies
+├── data/                    Seed data and crawl inputs
+│   └── seed_urls.txt        Seed URL corpus for crawling
 ├── src/
 │   ├── api/                 FastAPI web package
-│   │   ├── routes.py        HTTP route definitions (/search with pagination and Redis cache)
-│   │   └── schemas.py       Pydantic request and response schemas
+│   │   ├── routes.py        HTTP route definitions (/search with pagination, rate limiting, and Redis cache)
+│   │   └── schemas.py       Pydantic request and response schemas (with latency tracking)
+│   ├── embeddings/          Text chunking and vector embedding generation
+│   │   ├── chunker.py       Sliding-window text chunker with token boundary and overlap control
+│   │   ├── model.py         SentenceTransformer multilingual embedding wrapper
+│   │   ├── generator.py     Batch embedding generator
+│   │   └── processor.py     Text processing pipeline for vector indexing
 │   ├── cache.py             Redis search result caching and cache-key generation
 │   ├── crawler.py           Web crawler, robots.txt handler, and seed processor
 │   ├── document_parser.py   HTML parsing and SHA-256 content hashing
 │   ├── indexer.py           Inverted-index builder and delta updater
 │   ├── index_integrity.py   Index health auditing and automated repair
 │   ├── query_parser.py      Search syntax parser for terms, phrases, and operators
-│   ├── ranker.py            BM25 scoring, term collection, and IDF cache
+│   ├── ranker.py            BM25 scoring, term proximity bonus, and IDF cache
+│   ├── ratelimiter.py       Redis Lua-based token-bucket rate limiter
 │   ├── results.py           Context-aware snippet extraction and terminal highlighting
 │   ├── retriever.py         Posting retrieval, candidate selection, and phrase verification
 │   ├── search.py            End-to-end query execution pipeline
@@ -58,20 +70,23 @@ Sift/
 ├── schemas/                 Beanie document models (MongoDB ODM)
 │   ├── crawl_queue.py       Crawl task queue schema
 │   ├── domain.py            Domain metadata, robot rules, and crawl delay schema
+│   ├── embedding.py         Vector embedding schema
 │   ├── page.py              Page document schema (title, clean text, content hash)
 │   └── search_index.py      TermDocument, Posting, and IndexStats schemas
 ├── storage/
 │   ├── mongodb.py           MongoDB connection lifecycle and Beanie initialization
-│   └── redis.py             Redis connection manager and health check background task
+│   ├── redis.py             Redis connection manager and health check background task
+│   └── vectordb.py          Vector database client integration
 ├── frontend/                React 19 + TypeScript + Vite web interface
 │   ├── .dockerignore        Frontend Docker build ignore rules
 │   ├── Dockerfile           Frontend Node/Vite development container definition
 │   ├── src/
-│   │   ├── components/      Pagination, SearchBar, SearchResultItem, SearchResults
-│   │   ├── styles/          Component-scoped CSS files (Pagination.css, SearchBar.css, etc.)
-│   │   ├── lib/             API client with pagination, query parser, and favicon hooks
-│   │   ├── types/           TypeScript interfaces (SearchResponse, SearchResult, etc.)
-│   │   └── App.tsx          Main search interface state and layout
+│   │   ├── components/      AIOverview, Pagination, SearchBar, SearchResultItem, SearchResults
+│   │   ├── pages/           About, NotFound, Privacy, ServiceUnavailable, Terms, TooManyRequests
+│   │   ├── styles/          Component and page scoped CSS files
+│   │   ├── lib/             API client with rate limiting & error handling, query parser
+│   │   ├── types/           TypeScript interfaces (SearchResponse with time_taken, SearchResult, etc.)
+│   │   └── App.tsx          Main search interface state machine and routing layout
 │   ├── package.json         Frontend dependencies and build scripts
 │   └── README.md            Dedicated frontend documentation
 
@@ -342,6 +357,7 @@ Host: 127.0.0.1:8000
   "total": 2,
   "page": 1,
   "page_size": 10,
+  "time_taken": 0.023,
   "results": [
     {
       "title": "Python (programming language) - Wikipedia",
@@ -365,6 +381,7 @@ Host: 127.0.0.1:8000
 |---|---|---|
 | `400 Bad Request` | Empty query after trimming | `"Search query cannot be empty."` |
 | `422 Unprocessable Entity` | Parameter validation failure | Query missing, `page < 1`, or `page_size` out of bounds |
+| `429 Too Many Requests` | Token bucket rate limit exceeded | `"Too many requests. Please try again later."` (includes `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` headers) |
 | `503 Service Unavailable` | DB connection failure or missing index | `"Search service is temporarily unavailable."` / `"Search index is not available."` |
 | `500 Internal Server Error` | Unexpected processing error | `"An unexpected error occurred while searching."` |
 
