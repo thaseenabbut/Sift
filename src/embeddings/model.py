@@ -18,13 +18,10 @@ def embed_query(text: str) -> np.ndarray:
     text = f"query: {validated_text}"
     return model.encode(text, normalize_embeddings=True)
 
-def embed_passage(text: str) -> np.ndarray:
-    validated_text = validate_text(text)
-    text = f"passage: {validated_text}"
-    return model.encode(text, normalize_embeddings=True)
-
 def embed_passages(texts: list[str]) -> np.ndarray:
-    validated_texts = [validate_text(text) for text in texts]
+    validated_texts = [
+        validate_text(text) for text in texts
+    ]
     texts = [
         f"passage: {text}" for text in validated_texts
     ]
