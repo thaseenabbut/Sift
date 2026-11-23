@@ -13,3 +13,5 @@ class Chunker:
     def chunk(self, text: str) -> list[str]:
         validated_text = validate_text(text)
         return self.splitter.split_text(validated_text)
+    
+chunker = Chunker()
