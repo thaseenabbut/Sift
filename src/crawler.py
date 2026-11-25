@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -9,6 +10,22 @@ from urllib3.util import retry
 from bs4 import BeautifulSoup
 from collections import deque
 from rich import print
+
+
+def _format_eta(seconds):
+    if seconds < 0:
+        return "calculating..."
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds} seconds"
+    minutes, secs = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes} minutes {secs} seconds"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours} hours {minutes} minutes"
+    days, hours = divmod(hours, 24)
+    return f"{days} days {hours} hours"
 
 from document_parser import parser, calculate_content_hash
 from indexer import (
@@ -349,14 +366,35 @@ async def crawl(seed_urls, max_pages=10000000, refresh_existing=False):
         return 0
 
     pages_crawled = 0
-    
+    urls_processed = 0  # all URLs dequeued (including skips)
+    crawl_start_time = time.monotonic()
+
     while queue and pages_crawled < max_pages:
         current_url = queue.popleft()
-        
+        urls_processed += 1
+        page_start_time = time.monotonic()
+
         if not allowed_to_fetch(current_url):
             continue
 
-        print(f"\n[bold blue][SiftBot][/bold blue] Crawling: {current_url}")
+        # Build progress / ETA status line
+        total_known = pages_crawled + len(queue) + 1
+        progress = f"{pages_crawled + 1}/{total_known}"
+        elapsed_total = time.monotonic() - crawl_start_time
+        elapsed_str = _format_eta(elapsed_total)
+
+        if urls_processed > 1 and elapsed_total > 0:
+            rate = urls_processed / elapsed_total  # URLs/sec
+            remaining_urls = len(queue)
+            eta_seconds = remaining_urls / rate
+            eta_str = f" | ETA: ~{_format_eta(eta_seconds)}"
+        else:
+            eta_str = " | ETA: calculating..."
+
+        print(
+            f"\n[bold blue][SiftBot][/bold blue] [{progress}] Crawling: {current_url}"
+            f" [dim]({elapsed_str}{eta_str})[/dim]"
+        )
 
         response = retry_request(current_url)
         
@@ -429,7 +467,11 @@ async def crawl(seed_urls, max_pages=10000000, refresh_existing=False):
             continue
         
         pages_crawled += 1
-        print(f"\n[bold blue][SiftBot][/bold blue] Indexed: {current_url}")
+        page_elapsed = time.monotonic() - page_start_time
+        print(
+            f"\n[bold blue][SiftBot][/bold blue] Indexed: {current_url}"
+            f" [dim]({page_elapsed:.1f}s)[/dim]"
+        )
         soup = BeautifulSoup(response.text, 'html.parser')
         
         for link in soup.find_all('a', href=True):
@@ -443,5 +485,12 @@ async def crawl(seed_urls, max_pages=10000000, refresh_existing=False):
             if normal_url not in visited and is_domain_allowed(parsed_url.hostname, allowed_domains):
                 visited.add(normal_url)
                 queue.append(normal_url)
+
+    total_elapsed = time.monotonic() - crawl_start_time
+    if pages_crawled > 0:
+        avg = total_elapsed / pages_crawled
+        print(
+            f"\n[bold green][SiftBot][/bold green] Crawl complete: {pages_crawled} page(s) in {_format_eta(total_elapsed)} (avg {avg:.1f}s/page)"
+        )
 
     return pages_crawled

@@ -49,21 +49,20 @@ async def main(refresh_existing=False):
         print(f"Crawling {len(urls_to_crawl)} new seed URL(s)...")
 
     if urls_to_crawl:
-        with console.status("[bold green]Crawling and indexing pages...[/bold green]", spinner="dots"):
-            crawled = await crawl(
-                urls_to_crawl,
-                max_pages=1000000,
-                refresh_existing=refresh_existing,
-            )
-            if crawled > 0:
-                stats = await IndexStats.find_one({"id_name": "global_stats"})
+        crawled = await crawl(
+            urls_to_crawl,
+            max_pages=1000000,
+            refresh_existing=refresh_existing,
+        )
+        if crawled > 0:
+            stats = await IndexStats.find_one({"id_name": "global_stats"})
+            
+            if stats is not None:
+                stats.index_version += 1
+                await stats.save()
+                print(f"[bold green][INDEX VERSION][/bold green] Updated to v{stats.index_version}")
                 
-                if stats is not None:
-                    stats.index_version += 1
-                    await stats.save()
-                    print(f"[bold green][INDEX VERSION][/bold green] Updated to v{stats.index_version}")
-                    
-            print(f"Indexed {crawled} page(s).")
+        print(f"Indexed {crawled} page(s).")
     elif not stats or stats.total_documents == 0:
         print("No index found and no seed URLs to crawl.")
     else:
