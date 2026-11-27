@@ -1,7 +1,9 @@
 import re
-from src.tokenizer import tokenize
-from src.stemmer import stem
 from dataclasses import dataclass, field
+
+from src.stemmer import stem
+from src.tokenizer import tokenize
+
 
 @dataclass(frozen=True)
 class QueryTerm:

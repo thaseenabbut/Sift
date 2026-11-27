@@ -1,6 +1,9 @@
 import hashlib
+
 from bs4 import BeautifulSoup
+
 from schemas.page import Page
+
 
 def parser(url, html):
     soup = BeautifulSoup(html, "html.parser")
