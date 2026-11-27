@@ -1,5 +1,7 @@
-from rich import print
 import re
+
+from rich import print
+
 
 def generate_snippet(document, query_terms, term_positions, snippet_length=20, lead=3):
     tokens = document.clean_text.split()
@@ -65,7 +67,7 @@ async def results(ranked_results, pages, query_terms, term_docs_lookup, result_d
             if query.stemmed in term_docs_lookup and url in term_docs_lookup[query.stemmed].postings_by_url
         }
         snippet = generate_snippet(doc, query_terms, positions, snippet_length=20, lead=3)
-        highlighted_snippet = highlighting_terms(snippet, query_terms)
+        highlighted_snippet = highlighting_terms(snippet, query_terms)  # noqa: F841
         # print(f"[link={doc.url}][bold blue]{doc.title}[/bold blue][/link]")
         # print(f"[dim]{highlighted_snippet}[/dim]")
         # print("\n")

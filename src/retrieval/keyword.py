@@ -1,15 +1,9 @@
+# coordinates the keyword-based search pipeline like an orchestrates
 from src.ranker import build_idf_cache, collect_ranking_terms, score_document
 from src.retriever import apply_operators, phrase_search, retrieve
 
 
-def keyword_search(
-    parsed,
-    term_docs_lookup,
-    pages_lookup,
-    stats,
-    bm25_parameters,
-    proximity_weight,
-):
+def keyword_search(parsed, term_docs_lookup, pages_lookup, stats, bm25_parameters, proximity_weight):
     # retrieve candidate documents
     relevant_docs = retrieve(parsed, term_docs_lookup)
 
