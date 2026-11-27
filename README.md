@@ -29,7 +29,6 @@ Sift features both an interactive command-line interface with rich terminal form
 - **FastAPI REST API**: Asynchronous search endpoint (`/search`) with pagination parameters, input validation, and interactive Swagger UI (`/docs`).
 - **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, modular component CSS, and skeleton loading states.
 - **Interactive Terminal CLI**: Built with `rich` for formatted results, clickable links, highlighted snippets, and interactive search loop.
-- **Automated Testing Suite**: Unit and integration test suite (configured via `pytest` and `pytest-asyncio`) validating tokenization, text chunker sliding-window overlaps, indexing algorithms, and API contracts.
 
 ---
 

@@ -6,7 +6,7 @@ A fast, responsive, and minimalist web search interface for the **Sift** search 
 
 ## Overview
 
-The Sift frontend connects to the Sift FastAPI backend to deliver a Google-like search experience. It features a clean dual-mode interface (hero homepage transitioning into a focused results layout), instant client-side query term highlighting, smart breadcrumb URL parsing, domain favicon fetching, skeleton loading states, race-condition-safe request dispatching, full client-side and server-side pagination, search execution latency display, and comprehensive error resilience with specialized views for rate limits and service outages.
+The Sift frontend connects to the Sift FastAPI backend. It features a clean dual-mode interface (hero homepage transitioning into a focused results layout), instant client-side query term highlighting, smart breadcrumb URL parsing, domain favicon fetching, skeleton loading states, race-condition-safe request dispatching, full client-side and server-side pagination, search performance display, and comprehensive error resilience with specialized views for rate limits and service outages.
 
 ---
 
@@ -15,15 +15,13 @@ The Sift frontend connects to the Sift FastAPI backend to deliver a Google-like 
 - **Dual-State Interface**: Clean, centered hero landing view that smoothly transitions into a sticky top masthead with results upon search submission.
 - **Client-Side Query Parsing & Highlighting**: Automatically extracts quoted phrases, normal terms, and operators (e.g. `intitle:`) to dynamically highlight matching text in result titles and snippets using `<mark>`.
 - **Search Execution Latency**: Real-time display of backend query performance metrics (`About X results (0.02 seconds) for "query"`).
-- **Smart Numeric Pagination**: Seamless multi-page browsing via `<Pagination />` featuring Previous/Next navigation, active page indicators (`aria-current="page"`), sibling windowing with ellipsis gaps (`…`), and smooth scroll-to-top on page transitions.
+- **Pagination**: Multi-page browsing via `<Pagination />` featuring Previous/Next navigation, active page indicators (`aria-current="page"`), and smooth scroll-to-top on page transitions.
 - **Dedicated Error Resilience & Rate Limit Recovery**:
   - **429 Rate Limiting**: Intercepts HTTP 429 responses, extracts `Retry-After` headers, and renders a dedicated `<TooManyRequests />` page with a live countdown timer and retry mechanism.
   - **503 Outage Handling**: Renders a dedicated `<ServiceUnavailable />` screen when the backend database or search index is unreachable, with automated and manual retry triggers.
 - **Client-Side SPA Routing**: Built on **React Router 7** with dedicated routes for `/` (home), `/search` (results view), `/about`, `/terms`, `/privacy`, and wildcard 404 (`/not-found`).
 - **URL & Breadcrumb Parsing**: Parses result URLs to extract the clean site name, domain origin, and path breadcrumbs (`example.com › docs › api`).
-- **Favicon Resolution**: Fetches high-resolution site favicons dynamically with automatic fallback on load failure.
 - **Race Condition Prevention**: Employs monotonic request IDs (`requestId.current`) to discard outdated, slower responses when rapid successive queries or page changes occur.
-- **Docker Containerization**: Self-contained `node:22-alpine` container configuration with volume mounting and host binding (`--host 0.0.0.0`) for instant setup and multi-container orchestration.
 - **Modular Component CSS**: Component-scoped and page-scoped stylesheets located in `src/styles/` for clean separation of concerns and maintainability.
 - **Accessible & Semantic UX**: Includes proper ARIA attributes (`role="search"`, `aria-busy`, `aria-live="polite"`, `aria-label`), animated skeleton placeholders during loading, and clear empty/error notices.
 - **Dynamic Document Title**: Updates browser tab title to reflect the active search query (`{query} - Sift Search`).
