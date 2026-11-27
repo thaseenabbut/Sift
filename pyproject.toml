@@ -33,6 +33,9 @@ dependencies = [
     "nltk",
     "tldextract",
     "pydantic",
+    "numpy",
+    "sentence-transformers",
+    "langchain-text-splitters",
 ]
 
 [project.optional-dependencies]
