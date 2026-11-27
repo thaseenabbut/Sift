@@ -16,4 +16,3 @@ class Generator:
             
             return chunks, embedding
         
-generator = Generator()
