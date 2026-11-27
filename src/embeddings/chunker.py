@@ -1,5 +1,7 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from src.embeddings.model import count_tokens, validate_text
+
 
 class Chunker:
     def __init__(self):

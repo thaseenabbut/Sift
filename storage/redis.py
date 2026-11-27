@@ -1,8 +1,7 @@
 import os
-from dotenv import load_dotenv
 
 import redis.asyncio as redis
-
+from dotenv import load_dotenv
 from redis.exceptions import RedisError
 from rich import print
 
@@ -40,7 +39,7 @@ class RedisManager:
                 await self.redis_client.aclose()
                 self.redis_client = None
                 print("[bold red][DISCONNECTED REDIS][/bold red] Redis connection closed")
-        except Exception as e:
+        except RedisError as e:
             print("[bold red][CONNECTION REDISCLOSE FAILED][/bold red] Redis connection close failed: ", e)
 
 redis_manager = RedisManager()

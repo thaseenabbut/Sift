@@ -1,8 +1,10 @@
 # splits webpage text into chunks and tunrs them into embeddings and returns both
 
+import numpy as np
+
 from src.embeddings.chunker import Chunker
 from src.embeddings.model import embed_passages
-import numpy as np
+
 
 class Generator:
     def __init__(self):
