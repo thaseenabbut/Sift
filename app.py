@@ -1,13 +1,14 @@
-import uvicorn
 from contextlib import asynccontextmanager
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from rich import print
 
 from src.api.routes import router
-from storage.redis import RedisManager
 from src.ratelimiter import RedisRateLimiter
 from storage.mongodb import DatabaseManager
+from storage.redis import RedisManager
 
 redis_manager = RedisManager()
 db_manager = DatabaseManager()
