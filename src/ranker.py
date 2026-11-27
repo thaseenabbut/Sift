@@ -70,7 +70,7 @@ def calculate_proximity_bonus(term_positions, proximity_weight):
     min_window = float("inf")
 
     for right in range(len(all_positions)):
-        position, term_index = all_positions[right]
+        position, term_index = all_positions[right]  # noqa: RUF059
 
         term_counts[term_index] = term_counts.get(term_index, 0) + 1
 

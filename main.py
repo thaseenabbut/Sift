@@ -37,7 +37,7 @@ async def main(refresh_existing=False, no_crawl=False):
     stats = await IndexStats.find_one({"id_name": "global_stats"})
 
     
-    with open('data/seed_urls.txt', 'r') as f:
+    with open('data/seed_urls.txt', 'r') as f:  # noqa: ASYNC230
         seed_urls = [line.strip() for line in f]
     
     if no_crawl:

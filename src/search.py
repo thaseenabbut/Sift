@@ -63,8 +63,8 @@ async def search(query, bm25_parameters, redis_manager, proximity_weight):
     }
 
     # Retrieve candidate pages
-    relevant_docs = await Page.find(
-        {"url": {"$in": list(
+    relevant_docs = await Page.find(  # noqa: F841
+        {"url": {"$in": list(  # noqa: C400
             term_docs_lookup[term].postings_by_url.keys()
             for term in []
         )}}
