@@ -1,4 +1,3 @@
-
 from rich import print
 
 from schemas.page import Page
@@ -6,7 +5,10 @@ from schemas.search_index import IndexStats, TermDocument
 from src.cache import generate_cache_key, get_cached_results, set_cached_results
 from src.query_parser import parse_query
 from src.results import results
-from src.retrieval.keyword import keyword_search
+from src.retrieval.hybrid import hybrid_search
+from storage.vectordb import VectorDB
+
+vector_db = VectorDB()
 
 
 async def search(query, bm25_parameters, redis_manager, proximity_weight):
@@ -62,18 +64,11 @@ async def search(query, bm25_parameters, redis_manager, proximity_weight):
         td.term: td for td in term_docs_list
     }
 
-    # Retrieve candidate pages
-    relevant_docs = await Page.find(  # noqa: F841
-        {"url": {"$in": list(  # noqa: C400
-            term_docs_lookup[term].postings_by_url.keys()
-            for term in []
-        )}}
-    ).to_list()
-
-    # Fetch pages using candidate document IDs
-    from src.retriever import retrieve
-
-    candidate_docs = retrieve(parsed, term_docs_lookup)
+    candidate_docs = {
+        url
+        for term_doc in term_docs_lookup.values()
+        for url in term_doc.postings_by_url.keys()  # noqa: SIM118
+    }
 
     relevant_pages_list = await Page.find(
         {"url": {"$in": list(candidate_docs)}}
@@ -83,14 +78,15 @@ async def search(query, bm25_parameters, redis_manager, proximity_weight):
         page.url: page for page in relevant_pages_list
     }
 
-    # Perform keyword retrieval and BM25 ranking
-    scored_docs, ranking_terms = keyword_search(
+    scored_docs, ranking_terms = await hybrid_search(
+        query,
         parsed,
         term_docs_lookup,
         pages_lookup,
         stats,
         bm25_parameters,
         proximity_weight,
+        vector_db,
     )
 
     result_data = []
