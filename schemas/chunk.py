@@ -1,17 +1,17 @@
-from typing import List
 import pymongo
-from pymongo import IndexModel
 from beanie import Document, PydanticObjectId
+from pymongo import IndexModel
+
 
 class Chunk(Document):
     page_id: PydanticObjectId
     chunk_index: int
     text: str
-    embedding: List[float]
+    embedding: list[float]
     
     class Settings:
         name = "chunks"
-        indexes = [
+        indexes = [  # noqa: RUF012
             IndexModel(
                 [
                     ("page_id", pymongo.ASCENDING),

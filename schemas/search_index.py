@@ -1,17 +1,19 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+
 
 class Posting(BaseModel):
     url: str
     tf: int = 0
-    positions: List[int] = Field(default_factory=list)
+    positions: list[int] = Field(default_factory=list)
 
 class TermDocument(Document):
     term: Indexed(str, unique=True)
     document_frequency: int = 0
-    postings: List[Posting] = Field(default_factory=list)
-    _postings_by_url: Optional[Dict[str, Posting]] = PrivateAttr(default=None)
+    postings: list[Posting] = Field(default_factory=list)
+    _postings_by_url: dict[str, Posting] | None = PrivateAttr(default=None)
 
     @field_validator("postings", mode="before")
     @classmethod
@@ -25,7 +27,7 @@ class TermDocument(Document):
         return value
 
     @property
-    def postings_by_url(self) -> Dict[str, Posting]:
+    def postings_by_url(self) -> dict[str, Posting]:
         if self._postings_by_url is None:
             self._postings_by_url = {p.url: p for p in self.postings}
         return self._postings_by_url
@@ -35,7 +37,7 @@ class TermDocument(Document):
 
 class IndexStats(Document):
     id_name: Indexed(str, unique=True) = "global_stats"
-    document_length: Dict[str, int] = Field(default_factory=dict)
+    document_length: dict[str, int] = Field(default_factory=dict)
     avg_document_length: float = 0.0
     total_documents: int = 0
     index_version: int = 1
