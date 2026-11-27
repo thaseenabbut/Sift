@@ -1,3 +1,5 @@
+# here it loads the model and convert text into numerical vector embeddings
+
 import numpy as np
 from sentence_transformers import SentenceTransformer
 

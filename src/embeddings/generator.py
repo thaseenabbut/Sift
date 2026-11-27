@@ -1,3 +1,5 @@
+# splits webpage text into chunks and tunrs them into embeddings and returns both
+
 from src.embeddings.chunker import Chunker
 from src.embeddings.model import embed_passages
 import numpy as np
