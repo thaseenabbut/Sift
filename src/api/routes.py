@@ -8,10 +8,9 @@ from redis.exceptions import RedisError
 from rich import print
 from rich.markup import escape
 
-from src.search import search
-from src.ranker import bm25_parameters
-from src.ranker import proximity_weight
 from src.api.schemas import SearchResponse
+from src.ranker import bm25_parameters, proximity_weight
+from src.search import search
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
