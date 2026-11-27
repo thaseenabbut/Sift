@@ -100,21 +100,6 @@ class CrawlSummary:
         self.total_chunks_generated += indexing.chunks_generated
         self.total_embeddings_saved += indexing.embeddings_saved
 
-    def print_final(self) -> None:
-        print("\n[bold green][INDEX SUMMARY][/bold green]")
-        print(f"URLs discovered: {self.urls_discovered}")
-        print(f"Pages successfully crawled: {self.pages_successfully_crawled}")
-        print(f"New pages: {self.new_pages}")
-        print(f"Changed pages: {self.changed_pages}")
-        print(f"Unchanged pages skipped: {self.unchanged_pages_skipped}")
-        print(f"Pages indexed in BM25: {self.pages_indexed_bm25}")
-        print(f"Pages processed for chunking: {self.pages_processed_chunking}")
-        print(f"Total chunks generated: {self.total_chunks_generated}")
-        print(f"Total embeddings saved: {self.total_embeddings_saved}")
-        print(f"Failed pages: {len(self.failed_pages)}")
-        print(f"Indexing failures: {len(self.indexing_failures)}")
-
-
 def is_tracking_query_parameter(part):
     key = unquote_plus(part.partition("=")[0]).lower()
     return key.startswith(TRACKING_QUERY_PARAMETER_PREFIXES) or key in TRACKING_QUERY_PARAMETERS
