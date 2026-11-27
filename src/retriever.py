@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+
 def retrieve(parsed_query, term_docs_lookup):
     candidates = set()
     for term in [term.stemmed for term in parsed_query.terms]:

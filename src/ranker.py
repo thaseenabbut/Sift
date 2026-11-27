@@ -51,7 +51,7 @@ def calculate_bm25(term, document_id, term_lookup, stats, bm25_parameters, idf):
     return idf * (numerator / denominator)
 
 
-def calculate_proximity_bonus(term_positions):
+def calculate_proximity_bonus(term_positions, proximity_weight):
     if not term_positions or len(term_positions) < 2:
         return 0.0
 
@@ -125,12 +125,12 @@ def score_document(query_terms, document_id, term_lookup, stats, bm25_parameters
             term_lookup,
             stats,
             bm25_parameters,
-            idf_cache[stemmed_term],
+            idf_cache[stemmed_term]
         )
         
         term_positions.append(positions.positions)
             
-    proximity_bonus = calculate_proximity_bonus(term_positions)
+    proximity_bonus = calculate_proximity_bonus(term_positions, proximity_weight)
     
     final_score = bm25_score + proximity_bonus
     
