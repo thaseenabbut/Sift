@@ -1,20 +1,19 @@
-import sys
-import os
 import argparse
 import asyncio
+import os
+import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.crawler import crawl, already_indexed_urls, filter_seed_urls
-from src.search import search
-from src.ranker import bm25_parameters, proximity_weight
 
 from rich import print
 from rich.console import Console
 
-from storage.redis import redis_manager
-from storage.mongodb import db_manager
 from schemas.search_index import IndexStats
+from src.crawler import already_indexed_urls, crawl, filter_seed_urls
+from src.ranker import bm25_parameters, proximity_weight
+from src.search import search
+from storage.mongodb import db_manager
+from storage.redis import redis_manager
 
 console = Console()
 
@@ -25,48 +24,59 @@ def parse_args():
         action="store_true",
         help="Re-crawl and re-index existing seed URLs",
     )
+    parser.add_argument(
+        "--no-crawl",
+        action="store_true",
+        help="Skip all crawling and use the existing index as-is",
+    )
     return parser.parse_args()
 
-async def main(refresh_existing=False):
+async def main(refresh_existing=False, no_crawl=False):
     await redis_manager.connect_redis()
     await db_manager.connect_and_init()
     stats = await IndexStats.find_one({"id_name": "global_stats"})
 
     
     with open('data/seed_urls.txt', 'r') as f:
-        seed_urls = [line.strip() for line in f.readlines()]
+        seed_urls = [line.strip() for line in f]
     
-    indexed_urls = await already_indexed_urls()
-    urls_to_crawl = filter_seed_urls(seed_urls, indexed_urls, refresh_existing)
-
-    if stats and stats.total_documents > 0:
-        print("Existing index found.")
-
-    if refresh_existing:
-        urls_to_crawl = seed_urls
-        print(f"Refreshing {len(urls_to_crawl)} seed URL(s)...")
-    elif urls_to_crawl:
-        print(f"Crawling {len(urls_to_crawl)} new seed URL(s)...")
-
-    if urls_to_crawl:
-        crawled = await crawl(
-            urls_to_crawl,
-            max_pages=1000000,
-            refresh_existing=refresh_existing,
-        )
-        if crawled > 0:
-            stats = await IndexStats.find_one({"id_name": "global_stats"})
-            
-            if stats is not None:
-                stats.index_version += 1
-                await stats.save()
-                print(f"[bold green][INDEX VERSION][/bold green] Updated to v{stats.index_version}")
-                
-        print(f"Indexed {crawled} page(s).")
-    elif not stats or stats.total_documents == 0:
-        print("No index found and no seed URLs to crawl.")
+    if no_crawl:
+        if stats and stats.total_documents > 0:
+            print(f"[bold yellow][--no-crawl][/bold yellow] Skipping all crawling. Using existing index ({stats.total_documents} document(s)).")
+        else:
+            print("[bold yellow][--no-crawl][/bold yellow] Skipping all crawling, but no existing index found. Nothing to search.")
     else:
-        print("No new seed URLs to crawl. Use [bold yellow]--refresh[/bold yellow] to re-index existing seeds.")
+        indexed_urls = await already_indexed_urls()
+        urls_to_crawl = filter_seed_urls(seed_urls, indexed_urls, refresh_existing)
+
+        if stats and stats.total_documents > 0:
+            print("Existing index found.")
+
+        if refresh_existing:
+            urls_to_crawl = seed_urls
+            print(f"Refreshing {len(urls_to_crawl)} seed URL(s)...")
+        elif urls_to_crawl:
+            print(f"Crawling {len(urls_to_crawl)} new seed URL(s)...")
+
+        if urls_to_crawl:
+            crawled = await crawl(
+                urls_to_crawl,
+                max_pages=1000000,
+                refresh_existing=refresh_existing,
+            )
+            if crawled > 0:
+                stats = await IndexStats.find_one({"id_name": "global_stats"})
+                
+                if stats is not None:
+                    stats.index_version += 1
+                    await stats.save()
+                    print(f"[bold green][INDEX VERSION][/bold green] Updated to v{stats.index_version}")
+                    
+            print(f"Indexed {crawled} page(s).")
+        elif not stats or stats.total_documents == 0:
+            print("No index found and no seed URLs to crawl.")
+        else:
+            print("No new seed URLs to crawl. Use [bold yellow]--refresh[/bold yellow] to re-index existing seeds.")
     
     print("[bold green][ONLINE][/bold green] Sift Search Engine is ready!")
     print("Type 'exit' or 'quit' to stop.")
@@ -86,7 +96,7 @@ async def main(refresh_existing=False):
             break
         except EOFError:
             break
-        except Exception as e:
+        except (ValueError, RuntimeError):
             console.print_exception()
             
     await redis_manager.close_redis()
@@ -94,4 +104,4 @@ async def main(refresh_existing=False):
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(main(refresh_existing=args.refresh))
+    asyncio.run(main(refresh_existing=args.refresh, no_crawl=args.no_crawl))
