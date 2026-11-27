@@ -1,12 +1,16 @@
-from datetime import datetime, timezone
-from typing import Union
+from datetime import UTC, datetime
 
 from pymongo import UpdateOne
 
-from tokenizer import tokenize
-from stemmer import stem
-from schemas.search_index import TermDocument, IndexStats, Posting
+try:
+    from .stemmer import stem
+    from .tokenizer import tokenize
+except ImportError:
+    from stemmer import stem
+    from tokenizer import tokenize
+from schemas.chunk import Chunk
 from schemas.page import Page
+from schemas.search_index import IndexStats, Posting, TermDocument
 
 
 async def ensure_stats():
@@ -67,12 +71,13 @@ async def remove_document_from_index(url: str, delete_page: bool = False) -> boo
     if delete_page:
         page = await Page.find_one({"url": url})
         if page is not None:
+            await Chunk.get_pymongo_collection().delete_many({"page_id": page.id})
             await page.delete()
             removed = True
     return removed
 
 
-async def migrate_page_url(old_url: str, new_url: Union[str, Page], new_hash: str | None = None) -> bool:
+async def migrate_page_url(old_url: str, new_url: str | Page, new_hash: str | None = None) -> bool:
     destination_url = new_url.url if isinstance(new_url, Page) else new_url
     if old_url == destination_url:
         return False
@@ -145,7 +150,7 @@ async def migrate_page_url(old_url: str, new_url: Union[str, Page], new_hash: st
 
     if source is not None:
         source.url = destination_url
-        source.last_crawled_at = datetime.now(timezone.utc)
+        source.last_crawled_at = datetime.now(UTC)
         await source.save()
 
     length = stats.document_length.pop(old_url)
