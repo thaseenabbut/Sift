@@ -1,8 +1,6 @@
-"""Coordinates lexical and vector indexing for persisted pages."""
-
-from dataclasses import dataclass
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 from rich import print as rich_print
@@ -24,13 +22,6 @@ class IndexingResult:
 
 
 class PageIndexingPipeline:
-    """Keep BM25 and vector updates coordinated without coupling the crawler.
-
-    A vector failure deliberately leaves ``chunk_content_hash`` stale.  The
-    next crawl or explicit reindex will retry it instead of reporting the page
-    as fully indexed.
-    """
-
     def __init__(
         self,
         vector_db: VectorDB | None = None,
@@ -63,19 +54,12 @@ class PageIndexingPipeline:
                 chunks_skipped=True,
             )
 
-        # A changed Page must never continue serving old chunks.  If generation
-        # or insertion fails, the stale hash makes this retryable on the next
-        # run and the page is surfaced as an indexing failure to the caller.
         rich_print(
             "[bold cyan][VECTOR INDEX][/bold cyan] "
             f"Generating chunks and embeddings: {page.url}"
         )
         await self.vector_db.delete_chunks(page.id)
         if not isinstance(page.clean_text, str) or not page.clean_text.strip():
-            # Empty pages are valid crawl records, but there is no meaningful
-            # passage to embed.  Treat the empty vector set as the complete
-            # representation for this content hash so backfills do not retry
-            # the same page forever.
             page.chunk_content_hash = page.content_hash
             await page.save()
             rich_print(

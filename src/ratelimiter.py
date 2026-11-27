@@ -1,6 +1,6 @@
 import math
-import redis.asyncio as redis
 
+import redis.asyncio as redis
 from rich import print
 
 
@@ -88,7 +88,7 @@ return {allowed, math.floor(tokens), retry_after}
         
         try:
             self._script = redis_client.register_script(self.TOKEN_BUCKET_LUA)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"[bold yellow][WARNING][/bold yellow] Failed to register Lua script with Redis: {e}")
             self._script = None
 

@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
 import logging
 import math
+from dataclasses import dataclass, field
 from typing import Any
 
 from indexer import ensure_stats, index_page, refresh_stat_totals
@@ -215,7 +215,7 @@ async def repair_index_integrity(*, rebuild_pages: bool = False) -> RepairResult
         for page in pages:
             try:
                 await index_page(page)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 logger.warning("Failed to re-index page: %s", page.url)
                 failed.append(page.url)
         if failed:

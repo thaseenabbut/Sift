@@ -1,6 +1,8 @@
 import hashlib
 import json
+
 from rich import print
+
 
 def generate_cache_key(query, bm25_parameters, index_version, proximity_weight):
     query_hash = hashlib.sha256(
@@ -23,18 +25,18 @@ async def get_cached_results(redis_manager, cache_key):
         else:
             return None
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[bold red][RETRIEVE CACHE FAILED][/bold red] Could not retrieve cache from Redis. {type(e).__name__}: {e}")
         return None
     
 async def set_cached_results(redis_manager, cache_key, results, expiration=300):
     if redis_manager.redis_client is None:
-        return None
+        return
     try:
         await redis_manager.redis_client.setex(
             cache_key, expiration, json.dumps(results)
         )
         print(f"[bold green][CACHE SET][/bold green] Cache set for key: {cache_key} with expiration: {expiration} seconds.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[bold red][SET CACHE FAILED][/bold red] Could not set cache: {type(e).__name__}: {e}")
-        return None
+        return
