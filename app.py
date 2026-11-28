@@ -9,6 +9,7 @@ from src.api.routes import router
 from src.ratelimiter import RedisRateLimiter
 from storage.mongodb import DatabaseManager
 from storage.redis import RedisManager
+from storage.vectordb import VectorDB
 
 redis_manager = RedisManager()
 db_manager = DatabaseManager()
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     app.state.rate_limiter = RedisRateLimiter(redis_client, max_tokens=60, refill_rate=1, interval=1)
     
     await db_manager.connect_and_init()
+    app.state.vector_db = VectorDB()
     print("[bold green][API READY][/bold green] Sift API is accepting requests on port 8000")
     yield
     

@@ -8,7 +8,8 @@ from redis.exceptions import RedisError
 from rich import print
 from rich.markup import escape
 
-from src.api.schemas import SearchResponse
+from src.ai_overview.service import AIOverviewService
+from src.api.schemas import AIOverviewResponse, SearchResponse
 from src.ranker import bm25_parameters, proximity_weight
 from src.search import search
 
@@ -96,3 +97,22 @@ async def get_search(
         "time_taken": round(elapsed, 3),
         "results": page_results,
     }
+    
+@router.get("/overview", response_model=AIOverviewResponse)
+async def get_ai_overview(
+    request: Request,
+    q: str = Query(..., min_length=1)):
+    
+    vector_db = request.app.state.vector_db
+    ai_overview_service = AIOverviewService(vector_db)
+    
+    try:
+        result = await ai_overview_service.generate_overview(q)
+    except Exception:
+        logger.exception("Unexpected error while generating AI Overview.")
+        raise HTTPException(
+            status_code=500,
+            detail="AI Overview service is temporarily unavailable.",
+        )
+
+    return result
