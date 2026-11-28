@@ -36,19 +36,23 @@ function parseUrl(raw: string) {
 
 export function SearchResultItem({ result, terms }: SearchResultItemProps) {
   const { origin, hostname, crumbs, siteName } = parseUrl(result.url)
-  const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
+  const favicon = hostname
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`
+    : ''
 
   return (
     <li className="result">
       <div className="result-header">
         <span className="result-favicon">
-          <img
-            src={favicon}
-            alt=""
-            width={25}
-            height={25}
-            onError={(e) => (e.currentTarget.style.visibility = 'hidden')}
-          />
+          {favicon && (
+            <img
+              src={favicon}
+              alt=""
+              width={25}
+              height={25}
+              onError={(e) => (e.currentTarget.style.visibility = 'hidden')}
+            />
+          )}
         </span>
         <div className="result-site">
           <span className="site-name">{siteName}</span>

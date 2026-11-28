@@ -12,7 +12,13 @@ export function TooManyRequests({
   retryAfter,
   onRetry = () => window.location.reload(),
 }: TooManyRequestsProps) {
+  const [prevRetryAfter, setPrevRetryAfter] = useState(retryAfter)
   const [secondsLeft, setSecondsLeft] = useState(retryAfter ?? 0)
+
+  if (retryAfter !== prevRetryAfter) {
+    setPrevRetryAfter(retryAfter)
+    setSecondsLeft(retryAfter ?? 0)
+  }
 
   useEffect(() => {
     document.title = '429 Too Many Requests \u2013 Sift'
