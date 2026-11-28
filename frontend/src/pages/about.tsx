@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from 'react'
 import '../styles/about.css'
 
 const REPO_URL = 'https://github.com/thaseenabbut/Sift'
+const CURRENT_YEAR = new Date().getFullYear()
 
 const sourceUrl = (file: string) => `${REPO_URL}/blob/main/src/${file}`
 
@@ -769,7 +770,7 @@ export function About() {
           </nav>
 
           <p className="about-footer-copy">
-            &copy; {new Date().getFullYear()} Sift. All rights reserved.
+            &copy; {CURRENT_YEAR} Sift. All rights reserved.
           </p>
         </div>
       </footer>
