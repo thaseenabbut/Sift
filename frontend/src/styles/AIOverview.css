@@ -1,0 +1,300 @@
+/* ── AI Overview ──────────────────────────────────────
+   Not a box: plain text on the page background, set apart by an
+   accent-coloured heading and a thin rule underneath. Result cards
+   below it are bordered; this is deliberately not. */
+.ai-overview {
+  margin: 0 0 24px;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-overview-heading {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--accent);
+}
+
+.ai-overview-text,
+.ai-overview-markdown {
+  max-width: 65ch;
+  margin: 0 0 12px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.ai-overview-text:last-child,
+.ai-overview-markdown:last-child {
+  margin-bottom: 0;
+}
+
+.ai-overview-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.ai-overview-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.ai-overview-markdown p,
+.ai-overview-markdown ul,
+.ai-overview-markdown ol {
+  margin: 0 0 12px;
+}
+
+.ai-overview-markdown ul,
+.ai-overview-markdown ol {
+  padding-left: 1.25rem;
+}
+
+.ai-overview-markdown li + li {
+  margin-top: 4px;
+}
+
+.ai-overview-markdown strong {
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.ai-overview-markdown code {
+  font-family: var(--font-code);
+  font-size: 0.9em;
+}
+
+.ai-overview-markdown a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.ai-overview-error {
+  max-width: 65ch;
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+/* "AI can make mistakes…" footer line */
+.ai-overview-disclaimer {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
+/* Skeleton loading: four lines of different lengths, like a short paragraph. */
+.ai-overview-skeleton span {
+  display: block;
+  height: 14px;
+  margin-bottom: 12px;
+  border-radius: 7px;
+  background: var(--line);
+  animation: aiOverviewPulse 1.4s ease-in-out infinite;
+}
+
+.ai-overview-skeleton span:nth-child(1) {
+  width: 96%;
+}
+.ai-overview-skeleton span:nth-child(2) {
+  width: 100%;
+}
+.ai-overview-skeleton span:nth-child(3) {
+  width: 88%;
+}
+.ai-overview-skeleton span:nth-child(4) {
+  width: 55%;
+  margin-bottom: 0;
+}
+
+@keyframes aiOverviewPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Text for screen readers only. */
+.ai-overview .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-overview-skeleton span {
+    animation: none;
+  }
+}
+
+/* ── Sources pill and dialog ──────────────────────────
+   Selectors start with ".ai-overview" so they win over a global
+   ".sift button { font: inherit }" style reset. */
+.ai-overview .sources-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 5px 12px 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.ai-overview .sources-pill:hover {
+  border-color: var(--accent);
+}
+
+.ai-overview .sources-pill:focus-visible,
+.ai-overview .sources-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Overlapping site icons inside the pill. */
+.ai-overview .favicon-stack {
+  display: flex;
+}
+
+.ai-overview .favicon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--surface); /* ring that separates overlapping icons */
+  object-fit: cover;
+}
+
+.ai-overview .favicon + .favicon {
+  margin-left: -6px;
+}
+
+/* Shown when an icon fails to load. */
+.ai-overview .favicon-fallback {
+  background: var(--line);
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.ai-overview .sources-dialog {
+  width: min(460px, calc(100% - 32px));
+  max-height: min(70svh, 560px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+/* Only set display while open; otherwise it would override the closed state. */
+.ai-overview .sources-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-overview .sources-dialog::backdrop {
+  background: rgba(10, 18, 16, 0.45);
+}
+
+.ai-overview .sources-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-overview .sources-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.ai-overview .sources-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.ai-overview .sources-close:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--ink);
+}
+
+.ai-overview .sources-list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.ai-overview .sources-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.ai-overview .sources-list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ai-overview .sources-list a:hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.ai-overview .sources-list a:hover .sources-name {
+  color: var(--accent);
+}
+
+.ai-overview .sources-list .favicon {
+  width: 24px;
+  height: 24px;
+  box-shadow: none;
+  font-size: 0.75rem;
+}
+
+.ai-overview .sources-name {
+  display: block;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ai-overview .sources-host {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
