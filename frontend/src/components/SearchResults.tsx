@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { SearchResponse, Status } from '../types/search'
 import { SearchResultItem } from './SearchResultItem'
 import { getHighlightTerms, parseQuery } from '../lib/query'
 import { Pagination } from './Pagination'
+import { AiOverview } from './AIOverview'
 import '../styles/SearchResults.css'
 
 export type SearchResultsProps = {
@@ -47,6 +48,16 @@ export function SearchResults({
   )
   const terms = propHighlightTerms ?? computedHighlightTerms
 
+  const [prevSubmitted, setPrevSubmitted] = useState(submitted)
+  const [overviewActivated, setOverviewActivated] = useState(page === 1)
+
+  if (submitted !== prevSubmitted) {
+    setPrevSubmitted(submitted)
+    setOverviewActivated(page === 1)
+  } else if (page === 1 && !overviewActivated) {
+    setOverviewActivated(true)
+  }
+
   if (status === 'idle') {
     return null
   }
@@ -54,9 +65,17 @@ export function SearchResults({
   const results = response?.results ?? []
   const totalResults = response?.total ?? results.length
   const timeTaken = response?.time_taken
+  const showOverview =
+    overviewActivated && (status === 'loading' || (status === 'done' && results.length > 0))
 
   return (
     <main className="results" aria-busy={status === 'loading'}>
+      {showOverview && (
+        <div hidden={page > 1}>
+          <AiOverview key={submitted} query={submitted} />
+        </div>
+      )}
+
       {status === 'loading' && <SkeletonList />}
 
       {status === 'error' && (

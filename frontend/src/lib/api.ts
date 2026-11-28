@@ -1,4 +1,5 @@
 import type { SearchResponse } from '../types/search'
+import type { AIOverviewResponse } from '../types/ai-overview'
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -43,6 +44,36 @@ export async function searchSift(query: string, page = 1): Promise<SearchRespons
       response.status,
       error?.detail ?? `Search failed (${response.status})`,
       retryAfter
+    )
+  }
+
+  return response.json()
+}
+
+export async function getAIOverview(
+  query: string,
+  signal?: AbortSignal,
+): Promise<AIOverviewResponse> {
+  const params = new URLSearchParams({ q: query })
+
+  let response: Response
+  try {
+    response = await fetch(
+  `${API_URL}/overview?${params.toString()}`,
+  { signal },
+)
+  } catch (err) {
+    if (signal?.aborted) throw err
+
+    throw new ApiError(503, 'AI Overview service is temporarily unavailable.')
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null)
+
+    throw new ApiError(
+      response.status,
+      error?.detail ?? `AI Overview failed (${response.status})`
     )
   }
 

@@ -17,9 +17,11 @@ function App() {
   const location = useLocation()
 
   // URL is the source of truth for the submitted query and page.
-  const urlQuery = searchParams.get('q') ?? ''
-  const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+  const urlQuery = (searchParams.get('q') ?? '').trim()
+  const rawPage = Number(searchParams.get('page') ?? '1')
+  const urlPage = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1
 
+  const [prevUrlQuery, setPrevUrlQuery] = useState(urlQuery)
   const [query, setQuery] = useState(urlQuery) // what is in the input right now
   const [status, setStatus] = useState<Status>(urlQuery ? 'loading' : 'idle')
   const [response, setResponse] = useState<SearchResponse | null>(null)
@@ -32,12 +34,21 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null)
   const requestId = useRef(0)
 
-  useEffect(() => {
+  if (urlQuery !== prevUrlQuery) {
+    setPrevUrlQuery(urlQuery)
     setQuery(urlQuery)
-  }, [urlQuery])
+    if (!urlQuery) {
+      setStatus('idle')
+      setResponse(null)
+      setError('')
+      setIsUnavailable(false)
+      setIsRateLimited(false)
+      setRetryAfter(undefined)
+    }
+  }
 
   useEffect(() => {
-    if (urlQuery.trim() === '') {
+    if (urlQuery === '') {
       document.title = 'Sift Search'
     } else {
       document.title = `${urlQuery} - Sift Search`
@@ -45,16 +56,7 @@ function App() {
   }, [urlQuery])
 
   useEffect(() => {
-    const trimmed = urlQuery.trim()
-    if (!trimmed) {
-      setStatus('idle')
-      setResponse(null)
-      setError('')
-      setIsUnavailable(false)
-      setIsRateLimited(false)
-      setRetryAfter(undefined)
-      return
-    }
+    if (!urlQuery) return
 
     const id = ++requestId.current
     setStatus('loading')
@@ -63,7 +65,7 @@ function App() {
     setIsRateLimited(false)
     setRetryAfter(undefined)
 
-    searchSift(trimmed, urlPage)
+    searchSift(urlQuery, urlPage)
       .then((data) => {
         if (id !== requestId.current) return
         setResponse(data)
