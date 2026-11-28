@@ -1,21 +1,23 @@
 # Sift
 
-Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, MongoDB, and Redis. It crawls web pages with `robots.txt` compliance, extracts content, builds an inverted index with positional tracking, caches query results in Redis, and ranks results using the BM25 probabilistic relevance algorithm.
+Sift is a modular, full-stack search engine built with Python, FastAPI, React 19, MongoDB, and Redis. It crawls web pages with `robots.txt` compliance, stores both positional keyword and vector indexes, then combines BM25 and semantic retrieval into one ranked result set.
 
-Sift features both an interactive command-line interface with rich terminal formatting and a modern React web application backed by an asynchronous REST API with full pagination support and Docker containerization.
+Alongside the live hybrid search path, the repository contains the foundations for grounded RAG/AI Overviews: retrieved chunks are deduplicated, constrained to a context budget, wrapped in an evidence-only prompt, and prepared for generation through Groq.
 
 ---
 
 ## Features
 
-- **Web Crawling & Discovery**: Asynchronous crawler with `robots.txt` adherence (`urllib.robotparser`), per-domain crawl delays, and SHA-256 content hash deduplication.
+- **Web Crawling & Discovery**: Breadth-first crawler with `robots.txt` adherence (`urllib.robotparser`), URL normalisation, tracking-parameter removal, retries, redirect/canonical reconciliation, and SHA-256 content-hash deduplication.
 - **Inverted Index with Positional Data**: Stores term frequencies, document frequencies, and word position lists (`positions`) in MongoDB to enable precise exact phrase search and proximity checks.
 - **BM25 Ranking Algorithm with Proximity Scoring**: Probabilistic relevance scoring with configurable parameters ($k_1 = 1.2, b = 0.75$), document length normalization, cached inverse document frequencies (IDF), and sliding-window term proximity bonuses (`proximity_weight = 2.0`) to boost documents where query terms appear closer together.
 - **Redis Result Caching & Rate Limiting**:
   - High-performance caching layer in Redis for search query responses and term data, keyed by query hash, BM25 parameters ($k_1, b$), proximity weight, and index version with automated cache recovery and connection health checks.
   - Distributed token-bucket rate limiter (`RedisRateLimiter`) powered by atomic Lua scripts with client IP tracking, `429 Too Many Requests` responses (`Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` headers), and automatic fail-open resilience when Redis is unavailable.
 - **Search Latency & Performance Metrics**: Real-time server-side timing using high-resolution performance counters (`time_taken`), returned in API responses and surfaced cleanly in search summary views.
-- **Semantic Text Chunking & Embedding Pipeline**: Token-aware text chunking with sliding-window overlap (`Chunker`) and dense multilingual embeddings (`intfloat/multilingual-e5-small` via `SentenceTransformer`) alongside vector storage foundations.
+- **Hybrid Retrieval**: The live `/search` path combines BM25 keyword results with semantic vector retrieval using reciprocal-rank fusion (RRF), so documents can surface through exact terms or semantic similarity.
+- **Semantic Indexing**: Each page is split into 256-token chunks with a 40-token overlap, embedded with `intfloat/multilingual-e5-small` through `SentenceTransformer`, and stored in MongoDB for `$vectorSearch`.
+- **RAG / AI Overview Foundation**: A retriever resolves vector chunks back to real pages, a context builder deduplicates and token-budgets source material, and an evidence-only prompt plus Groq adapter prepare grounded AI responses. The generation endpoint is not wired into the public API yet.
 - **Docker & Docker Compose Containerization**: Production-ready multi-service container setup (`Dockerfile` for backend, `Dockerfile` for frontend, and `docker-compose.yaml`) coordinating MongoDB 8.0, Redis 7 Alpine, the FastAPI search backend, and the React frontend with health checks, persistent volume storage, and seed URL dataset ingestion.
 - **Advanced Query Operators**:
   - Required terms (`+python`) and excluded terms (`-java`)
@@ -26,9 +28,58 @@ Sift features both an interactive command-line interface with rich terminal form
   - Related term matching (`related:search`)
 - **Server-Side & Client-Side Pagination**: Full pagination support through `page` and `page_size` query parameters on the API, paired with a React pagination component supporting numeric navigation, smart gap calculation, and smooth scrolling.
 - **Index Integrity & Self-Repair**: Automated verification tools (`src/index_integrity.py`) to detect and heal missing postings or desynchronized index statistics.
-- **FastAPI REST API**: Asynchronous search endpoint (`/search`) with pagination parameters, input validation, and interactive Swagger UI (`/docs`).
+- **FastAPI REST API**: Search endpoint (`/search`) with pagination parameters, input validation, rate limiting, result caching, and interactive Swagger UI (`/docs`).
 - **Modern React Web Frontend**: Clean, responsive search UI built with React 19, Vite, and TypeScript located in [`frontend/`](frontend/). Features live query parsing, term highlighting, favicon resolution, breadcrumbs, modular component CSS, and skeleton loading states.
 - **Interactive Terminal CLI**: Built with `rich` for formatted results, clickable links, highlighted snippets, and interactive search loop.
+
+---
+
+## Architecture
+
+Sift builds two indexes ahead of time and consults both for every search. Keyword and semantic rankings are fused only after query operators and phrase checks have been applied.
+
+```mermaid
+flowchart TB
+  subgraph Indexing[Offline indexing]
+    Seeds[Seed URLs] --> Crawl[SiftBot crawl\nrobots, canonical URLs, retries]
+    Crawl --> Parse[HTML parser\nclean text + metadata]
+    Parse --> Pages[(MongoDB pages\ncontent hash)]
+    Pages --> Keyword[Tokenizer + Porter stemmer]
+    Keyword --> Inverted[(Term documents\ntf, df, positions)]
+    Pages --> Chunk[Chunker\n256 tokens / 40 overlap]
+    Chunk --> Embed[Multilingual E5 embeddings]
+    Embed --> Vectors[(MongoDB chunks\nvector index)]
+  end
+
+  subgraph Search[Live search: GET /search]
+    Query[Query] --> Parser[Parse operators, phrases and terms]
+    Parser --> BM25[Keyword retrieval + BM25\nproximity bonus]
+    Inverted -. postings .-> BM25
+    Parser --> Semantic[Semantic retrieval]
+    Vectors -. vector search .-> Semantic
+    BM25 --> RRF[Reciprocal-rank fusion]
+    Semantic --> RRF
+    RRF --> Snippets[Snippet generation]
+    Snippets --> Cache[(Redis cache)]
+    Cache --> Response[Paginated API response]
+  end
+```
+
+### RAG / AI Overview pipeline
+
+The AI Overview modules reuse the semantic index rather than relying on ungrounded model knowledge:
+
+```mermaid
+flowchart LR
+  Query[Query] --> Retrieve[Vector chunk retrieval]
+  Retrieve --> Verify[Resolve chunks to indexed pages]
+  Verify --> Context[Deduplicate + context budget]
+  Context --> Prompt[Evidence-only prompt]
+  Prompt --> Groq[Groq generation adapter]
+  Groq --> Overview[Grounded overview + source metadata]
+```
+
+This is an in-repository service layer, not a public endpoint yet: `AIOverviewService.generate` and an API route still need to be completed before the overview can be served end-to-end.
 
 ---
 
@@ -53,6 +104,12 @@ Sift/
 │   │   ├── model.py         SentenceTransformer multilingual embedding wrapper
 │   │   ├── generator.py     Batch embedding generator
 │   │   └── processor.py     Text processing pipeline for vector indexing
+│   ├── ai_overview/         Grounded RAG context and generation foundation
+│   │   ├── retriever.py     Retrieves chunks and resolves their source pages
+│   │   ├── context.py       Deduplicates chunks and builds a bounded context
+│   │   ├── prompt.py        Evidence-only overview prompt
+│   │   ├── llm.py           Groq generation adapter
+│   │   └── service.py       Coordinates overview retrieval and context building
 │   ├── cache.py             Redis search result caching and cache-key generation
 │   ├── crawler.py           Web crawler, robots.txt handler, and seed processor
 │   ├── document_parser.py   HTML parsing and SHA-256 content hashing
@@ -63,19 +120,18 @@ Sift/
 │   ├── ratelimiter.py       Redis Lua-based token-bucket rate limiter
 │   ├── results.py           Context-aware snippet extraction and terminal highlighting
 │   ├── retriever.py         Posting retrieval, candidate selection, and phrase verification
+│   ├── retrieval/           Keyword, semantic, hybrid and RRF retrieval paths
 │   ├── search.py            End-to-end query execution pipeline
 │   ├── stemmer.py           Porter stemmer integration
 │   └── tokenizer.py         Regex-based tokenization and normalization
 ├── schemas/                 Beanie document models (MongoDB ODM)
-│   ├── crawl_queue.py       Crawl task queue schema
-│   ├── domain.py            Domain metadata, robot rules, and crawl delay schema
-│   ├── embedding.py         Vector embedding schema
+│   ├── chunk.py             Stored text chunks and dense embeddings
 │   ├── page.py              Page document schema (title, clean text, content hash)
 │   └── search_index.py      TermDocument, Posting, and IndexStats schemas
 ├── storage/
 │   ├── mongodb.py           MongoDB connection lifecycle and Beanie initialization
 │   ├── redis.py             Redis connection manager and health check background task
-│   └── vectordb.py          Vector database client integration
+│   └── vectordb.py          MongoDB vector-search client
 ├── frontend/                React 19 + TypeScript + Vite web interface
 │   ├── .dockerignore        Frontend Docker build ignore rules
 │   ├── Dockerfile           Frontend Node/Vite development container definition
@@ -99,14 +155,14 @@ Sift supports a Google-like search syntax:
 
 | Syntax | Description | Example |
 |---|---|---|
-| `terms` | Standard query terms — scored and ranked via BM25 | `python async web` |
+| `terms` | Standard query terms — ranked through fused BM25 and semantic retrieval | `python async web` |
 | `+term` | **Required term** — document must contain this term | `+fastapi framework` |
 | `-term` | **Excluded term** — documents containing this term are omitted | `python -snakes` |
 | `"phrase"` | **Exact phrase** — matches words in precise sequential order | `"search engine"` |
 | `site:domain` | **Domain filter** — restricts results to a specific host | `site:wikipedia.org` |
 | `intitle:term` | **Title search** — term must appear in the document title | `intitle:python` |
 | `inurl:term` | **URL search** — term must appear in the URL path or host | `inurl:wiki` |
-| `related:term` | **Related terms** — finds documents mentioning related concepts | `related:database` |
+| `related:term` | **Related URL filter** — requires the term in the result URL | `related:database` |
 
 *Operators can be combined freely, for example: `intitle:python "web framework" -flask site:wikipedia.org`.*
 
@@ -230,7 +286,7 @@ pip install -e ".[test]"
 Or install all runtime dependencies directly:
 
 ```bash
-pip install fastapi uvicorn[standard] beanie motor pymongo redis python-dotenv beautifulsoup4 requests urllib3 rich nltk tldextract pydantic pytest pytest-asyncio httpx
+pip install fastapi uvicorn[standard] beanie motor pymongo redis python-dotenv beautifulsoup4 requests urllib3 rich nltk tldextract pydantic numpy sentence-transformers langchain-text-splitters groq pytest pytest-asyncio httpx
 ```
 
 *Note: Sift automatically downloads required NLTK tokenizers upon first run.*
@@ -330,7 +386,7 @@ pytest
 
 ### `GET /search`
 
-Searches the indexed corpus using BM25 scoring, operator filtering, and server-side pagination.
+Searches the indexed corpus through hybrid BM25 and semantic retrieval, operator filtering, reciprocal-rank fusion, and server-side pagination.
 
 #### Query Parameters
 

@@ -6,7 +6,7 @@ A fast, responsive, and minimalist web search interface for the **Sift** search 
 
 ## Overview
 
-The Sift frontend connects to the Sift FastAPI backend. It features a clean dual-mode interface (hero homepage transitioning into a focused results layout), instant client-side query term highlighting, smart breadcrumb URL parsing, domain favicon fetching, skeleton loading states, race-condition-safe request dispatching, full client-side and server-side pagination, search performance display, and comprehensive error resilience with specialized views for rate limits and service outages.
+The Sift frontend connects to the FastAPI search backend and renders the fused keyword and semantic results it returns. It features a clean dual-mode interface (hero homepage transitioning into a focused results layout), instant client-side query term highlighting, smart breadcrumb URL parsing, domain favicon fetching, skeleton loading states, race-condition-safe request dispatching, full client-side and server-side pagination, search performance display, and dedicated recovery states for rate limits and service outages.
 
 ---
 
@@ -15,6 +15,8 @@ The Sift frontend connects to the Sift FastAPI backend. It features a clean dual
 - **Dual-State Interface**: Clean, centered hero landing view that smoothly transitions into a sticky top masthead with results upon search submission.
 - **Client-Side Query Parsing & Highlighting**: Automatically extracts quoted phrases, normal terms, and operators (e.g. `intitle:`) to dynamically highlight matching text in result titles and snippets using `<mark>`.
 - **Search Execution Latency**: Real-time display of backend query performance metrics (`About X results (0.02 seconds) for "query"`).
+- **Hybrid Search Results**: Renders the backend's single ranked list, which is produced by fusing BM25 keyword retrieval with semantic vector retrieval.
+- **AI Overview Surface**: Includes an `AiOverview` component with loading, success, failure, timeout, and cancellation states.
 - **Pagination**: Multi-page browsing via `<Pagination />` featuring Previous/Next navigation, active page indicators (`aria-current="page"`), and smooth scroll-to-top on page transitions.
 - **Dedicated Error Resilience & Rate Limit Recovery**:
   - **429 Rate Limiting**: Intercepts HTTP 429 responses, extracts `Retry-After` headers, and renders a dedicated `<TooManyRequests />` page with a live countdown timer and retry mechanism.
@@ -25,6 +27,24 @@ The Sift frontend connects to the Sift FastAPI backend. It features a clean dual
 - **Modular Component CSS**: Component-scoped and page-scoped stylesheets located in `src/styles/` for clean separation of concerns and maintainability.
 - **Accessible & Semantic UX**: Includes proper ARIA attributes (`role="search"`, `aria-busy`, `aria-live="polite"`, `aria-label`), animated skeleton placeholders during loading, and clear empty/error notices.
 - **Dynamic Document Title**: Updates browser tab title to reflect the active search query (`{query} - Sift Search`).
+
+---
+
+## Request flow
+
+```mermaid
+flowchart LR
+  Input[Search bar] --> URL[URL query state]
+  URL --> App[App request state machine]
+  App --> API[GET /search]
+  API --> Hybrid[Backend hybrid retrieval\nBM25 + semantic + RRF]
+  Hybrid --> Results[SearchResults]
+  Results --> Items[Highlighted result items]
+  Results --> Pages[Pagination]
+  Results --> Overview[AiOverview surface]
+```
+
+The frontend does not choose between keyword and semantic results; that ranking work happens in the backend. It receives and displays one paginated result set.
 
 ---
 
@@ -50,7 +70,7 @@ frontend/
 ├── src/
 │   ├── assets/             Frontend assets
 │   ├── components/         Reusable React components
-│   │   ├── AIOverview.tsx         AI overview summary component
+│   │   ├── AIOverview.tsx         AI Overview UI states and mock/API client boundary
 │   │   ├── Pagination.tsx         Multi-page navigation controls and ellipsis logic
 │   │   ├── SearchBar.tsx          Search input form with SVG search icon
 │   │   ├── SearchResultItem.tsx   Individual result card with favicon, title, snippet, and highlights
@@ -63,6 +83,7 @@ frontend/
 │   │   ├── terms.tsx              Terms of service page
 │   │   └── too-many-requests.tsx  429 Too many requests screen with countdown timer
 │   ├── styles/             Component-scoped and page-scoped stylesheets
+│   │   ├── AIOverview.css          AI Overview loading, content and error states
 │   │   ├── about.css              About page styling
 │   │   ├── not-found.css          404 page styling
 │   │   ├── Pagination.css         Pagination bar and button styles
@@ -77,7 +98,8 @@ frontend/
 │   │   ├── api.ts                 Backend API client with pagination, error parsing, and retry-after support (`searchSift`, `ApiError`)
 │   │   └── query.ts               Query parser, regex escaping, and URL segment splitter
 │   ├── types/              TypeScript definitions
-│   │   └── search.ts              Data types for API response (with time_taken), results, and query parser
+│   │   ├── ai-overview.ts         AI Overview response and source types
+│   │   └── search.ts              Data types for API response (with time_taken) and results
 │   ├── App.css             Application layout and hero-to-results masthead transitions
 │   ├── App.tsx             Main application container, pagination state, and search state machine
 │   ├── font.css            Font definitions and imports
@@ -184,7 +206,7 @@ The application will be available at:
 
 ## API & Data Models
 
-The frontend communicates with the Sift API endpoint `GET /search?q={query}&page={page}`.
+The frontend communicates with the Sift API endpoint `GET /search?q={query}&page={page}`. The backend runs hybrid retrieval internally: BM25 keyword retrieval and semantic vector retrieval are combined with reciprocal-rank fusion before this endpoint returns results.
 
 ### `SearchResult`
 ```typescript
@@ -224,6 +246,18 @@ Tracks the UI state lifecycle:
 - `'loading'`: A query or page transition has been dispatched; displays `<SkeletonList />`.
 - `'done'`: Response received; displays result count, query latency (`time_taken`), `<SearchResultItem />` list, and `<Pagination />`.
 - `'error'`: An error occurred; displays user-friendly error notices or triggers dedicated full-page error components (`<TooManyRequests />` for HTTP 429, `<ServiceUnavailable />` for HTTP 503).
+
+### AI Overview integration status
+
+`AiOverview` is mounted above the first page of results and is deliberately isolated from ordinary result rendering. Its component handles cancellation, a 15-second timeout, and provider-facing error states, but it currently uses local mock content by default.
+
+To connect it to the backend RAG pipeline, switch `USE_MOCK` to `false` and provide an endpoint at `GET /api/overview?q={query}` that returns:
+
+```json
+{ "overview": "Grounded overview text" }
+```
+
+The backend currently contains the retrieval, context-building, prompt, and Groq-adapter layers for this work; its public overview route and final generation orchestration are still pending.
 
 ---
 
