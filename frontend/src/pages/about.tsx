@@ -57,89 +57,199 @@ score = Σ idf · tf · (k1 + 1) / (tf + k1 · norm)`}
   </figure>
 )
 
+const RRF_FORMULA = (
+  <figure className="arch-excerpt">
+    <figcaption>
+      Reciprocal Rank Fusion with k&nbsp;=&nbsp;60.
+      Each retriever contributes 1/(k + rank) per document, and the totals are
+      sorted to produce one final ranking without comparing raw scores.
+    </figcaption>
+    <pre
+      className="arch-code"
+      tabIndex={0}
+      role="region"
+      aria-label="RRF formula"
+    >
+      <code>
+        {`score(d) = Σ  1 / (k + rank_i(d))
+              i ∈ {keyword, semantic}`}
+      </code>
+    </pre>
+  </figure>
+)
+
 const BUILD_STAGES: readonly Stage[] = [
   {
-    title: 'Crawl',
+    title: 'Discover & crawl',
     files: ['crawler.py'],
     body: (
       <>
-        A Python crawler, SiftBot, starts from seed URLs and follows links
-        breadth-first, staying within the seed domains. It reads each
-        site’s robots.txt first, strips tracking parameters, and resolves
-        redirects and canonical links so the same page isn’t indexed twice.
+        SiftBot starts with seed URLs and walks links breadth-first, staying
+        within their registered domains. Before fetching a page it checks
+        <code>robots.txt</code>; it also normalises URLs, removes common
+        tracking parameters, retries transient failures, and reconciles
+        redirects and canonical aliases.
       </>
     ),
   },
   {
-    title: 'Process',
-    files: ['document_parser.py', 'tokenizer.py', 'stemmer.py'],
+    title: 'Parse & store pages',
+    files: ['document_parser.py'],
     body: (
       <>
-        BeautifulSoup pulls out each page’s title, description and
-        headings and discards navigation, scripts and other page furniture.
-        The remaining text is lowercased, split into tokens, stripped of
-        common stop words and reduced to stems with the Porter stemmer, so
-        “searching” and “searches” both become “search”.
+        BeautifulSoup extracts the title, description, headings and readable
+        text while removing scripts, navigation, headers, footers and other
+        page furniture. The resulting page document is stored in MongoDB
+        with a SHA-256 content hash, so unchanged content can be skipped and
+        incomplete indexing can be repaired on a later crawl.
       </>
     ),
   },
   {
-    title: 'Index',
-    files: ['indexer.py'],
+    title: 'Build the keyword index',
+    files: ['indexer.py', 'tokenizer.py', 'stemmer.py'],
     hinge: true,
     body: (
       <>
-        The result is an inverted index, like the one at the back of a
-        book. For every stem it records which pages contain it (document
-        frequency), how often it appears in each (term frequency) and at
-        which word positions. It lives in MongoDB. Each page also gets a
-        SHA-256 content hash, so a refresh skips pages that haven’t changed
-        and replaces the entries of those that have.
+        Clean text is tokenised and Porter-stemmed, then written as a MongoDB
+        inverted index. For every stem, Sift records the pages that contain
+        it, its per-page frequency and every word position. Index statistics
+        retain document lengths and the corpus average needed for BM25.
       </>
     ),
     excerpt: INDEX_ENTRY,
+  },
+  {
+    title: 'Build the semantic index',
+    files: ['embeddings/chunker.py', 'embeddings/model.py', 'embeddings/processor.py', 'indexing_pipeline.py'],
+    body: (
+      <>
+        The same page text is split into 256-token chunks with a 40-token
+        overlap using <code>RecursiveCharacterTextSplitter</code>. Sift embeds
+        those chunks with the multilingual{' '}
+        <code>intfloat/multilingual-e5-small</code> model and stores the
+        vectors alongside their page IDs in MongoDB Atlas for vector search.
+        A unified <code>PageIndexingPipeline</code> orchestrates both the BM25
+        and vector paths, tracking content hashes to skip unchanged pages.
+      </>
+    ),
   },
 ]
 
 const QUERY_STAGES: readonly Stage[] = [
   {
-    title: 'Read the query',
+    title: 'Parse the query',
     files: ['query_parser.py'],
     body: (
       <>
         A query goes through the same tokenizer and stemmer as the
         documents, so both sides share one vocabulary. Operators are pulled
-        out first: <code>+required</code> and <code>-excluded</code> terms,{' '}
-        <code>“exact phrases”</code>, <code>site:</code>,{' '}
-        <code>intitle:</code> and <code>inurl:</code>.
+        out first: <code>+required</code> and <code>-excluded</code> terms,
+        exact <code>"phrases"</code>, <code>site:</code>,{' '}
+        <code>intitle:</code>, <code>inurl:</code> and <code>related:</code>.
       </>
     ),
   },
   {
-    title: 'Retrieve',
-    files: ['retriever.py'],
+    title: 'Retrieve & rank keywords',
+    files: ['retrieval/keyword.py', 'retriever.py', 'ranker.py'],
     body: (
       <>
-        Every stem in the query is looked up in the index with a single
-        MongoDB query. Pages containing any of the terms become candidates,
-        and the operators then narrow them. For exact phrases, the stored
-        word positions confirm that the words sit next to each other, in
-        order.
-      </>
-    ),
-  },
-  {
-    title: 'Rank',
-    files: ['ranker.py'],
-    body: (
-      <>
-        BM25 scores each candidate against the query, and the pages are
-        sorted by that score. Rare terms count for more than common ones,
-        repeated mentions help but with diminishing returns, and long pages
-        are normalised so length alone doesn’t win.
+        Matching stems produce candidate pages, then filters narrow them.
+        Exact phrases are verified from stored positions, not substring
+        matching. BM25 scores the remaining pages, with a proximity bonus for
+        query terms that appear close together.
       </>
     ),
     excerpt: BM25_FORMULA,
+  },
+  {
+    title: 'Retrieve semantic matches',
+    files: ['retrieval/semantic.py', 'embeddings/model.py'],
+    body: (
+      <>
+        The query is embedded with the same E5 model and fired against
+        MongoDB Atlas Vector Search to find similar stored chunks.
+        Their parent pages are added as semantic candidates, then pass through
+        the same operator filters and exact-phrase checks.
+      </>
+    ),
+  },
+  {
+    title: 'Fuse & rank with RRF',
+    files: ['retrieval/hybrid.py', 'retrieval/fusion.py'],
+    hinge: true,
+    body: (
+      <>
+        Reciprocal Rank Fusion combines the keyword and semantic rankings
+        without comparing their raw scores. Each retriever contributes a rank-based
+        weight per document, producing one unified ranking that respects both
+        lexical precision and semantic understanding.
+      </>
+    ),
+    excerpt: RRF_FORMULA,
+  },
+  {
+    title: 'Format, cache & serve',
+    files: ['results.py', 'cache.py', 'api/routes.py', 'ratelimiter.py'],
+    body: (
+      <>
+        Sift generates a focused text snippet for each page and caches the
+        finished result set in Redis for five minutes. A token-bucket rate
+        limiter protects the FastAPI endpoint, which paginates results for
+        the React interface.
+      </>
+    ),
+  },
+]
+
+const AI_OVERVIEW_STAGES: readonly Stage[] = [
+  {
+    title: 'Retrieve relevant chunks',
+    files: ['ai_overview/retriever.py', 'retrieval/semantic.py'],
+    body: (
+      <>
+        A parallel vector search retrieves up to 50 of the most relevant
+        chunks for the query. Each chunk is enriched with its source page
+        title and URL from MongoDB, so every claim can be traced back.
+      </>
+    ),
+  },
+  {
+    title: 'Build grounded context',
+    files: ['ai_overview/context.py'],
+    body: (
+      <>
+        The <code>ContextBuilder</code> deduplicates chunks, ranks them by
+        similarity score, and packs them into numbered{' '}
+        <code>&lt;document&gt;</code> blocks within a 3 000-token budget.
+        Source URLs are collected for citation display.
+      </>
+    ),
+  },
+  {
+    title: 'Generate with Groq LLM',
+    files: ['ai_overview/prompt.py', 'ai_overview/llm.py'],
+    body: (
+      <>
+        A system prompt instructs the model to answer only from the retrieved
+        context, never invent facts, and treat document content as untrusted.
+        Sift calls Groq's async API with low temperature and reasoning effort
+        to produce a concise, Google-style AI Overview with bolded key terms.
+      </>
+    ),
+  },
+  {
+    title: 'Cite & deliver',
+    files: ['ai_overview/service.py'],
+    body: (
+      <>
+        The <code>AIOverviewService</code> orchestrates the full RAG pipeline:
+        retrieve → build context → generate. Sources are attached alongside
+        the generated overview so the React interface can render clickable
+        citation links back to the original web pages.
+      </>
+    ),
   },
 ]
 
@@ -147,35 +257,202 @@ const ROADMAP = [
   {
     number: '01',
     title: 'Relevance',
-    desc: 'Improving retrieval and ranking so the most useful pages come first. Today that means BM25 over exact keywords, and there is plenty of room to tune and extend it.',
+    desc: 'Improving retrieval and ranking so the most useful pages come first. Sift already combines BM25 keyword results with semantic matches via Reciprocal Rank Fusion; tuning weights and evaluation remain ongoing.',
   },
   {
     number: '02',
     title: 'Understanding',
-    desc: 'Exploring semantic search and vector embeddings to go beyond exact keyword matching, so a query and a page that share meaning but not words can still find each other.',
+    desc: 'Strengthening the semantic path so a query and a page that share meaning, but not exact words, can still find each other reliably.',
   },
   {
     number: '03',
-    title: 'Synthesis',
-    desc: 'Exploring AI-generated answers grounded in retrieved web pages, with links back to the sources they came from.',
+    title: 'AI Overviews',
+    desc: 'RAG-powered AI-generated answers grounded in retrieved web pages, with citation links back to the sources they came from. The first version is live and uses Groq for fast inference.',
   },
 ] as const
+
+/* ═══════════════════════════════════════════════════════
+   Architecture map — the big SVG
+   ═══════════════════════════════════════════════════════ */
+
+function ArchitectureMap() {
+  return (
+    <figure className="system-map" aria-labelledby="system-map-caption">
+      <figcaption id="system-map-caption" className="system-map-caption">
+        The end-to-end Sift pipeline. Solid arrows show the primary data flow;
+        dashed arrows show index lookups during a search. The{' '}
+        <span className="system-map-label--ai">green path</span> is the RAG
+        pipeline powering AI Overviews.
+      </figcaption>
+      <div className="system-map-scroll" tabIndex={0}>
+        <svg
+          className="system-map-svg"
+          viewBox="0 0 1400 820"
+          role="img"
+          aria-labelledby="system-map-title system-map-desc"
+        >
+          <title id="system-map-title">Sift search architecture</title>
+          <desc id="system-map-desc">
+            Pages are crawled, parsed and stored before being indexed for both
+            keyword and semantic retrieval. A search query is parsed, routed through
+            both retrieval paths, fused with RRF, cached and returned. A parallel
+            RAG branch retrieves chunks, builds grounded context and generates an
+            AI Overview with citations.
+          </desc>
+          <defs>
+            <marker id="arch-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" className="system-map-arrow" />
+            </marker>
+            <marker id="arch-arrow-ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" className="system-map-arrow--ai" />
+            </marker>
+          </defs>
+
+          {/* ── Lane labels ─────────────────────────── */}
+          <text x="40" y="38" className="system-map-lane">Index ahead of time</text>
+          <text x="40" y="330" className="system-map-lane">Search request</text>
+          <text x="40" y="650" className="system-map-lane">AI Overview (RAG)</text>
+
+          {/* ── Index-time arrows ────────────────────── */}
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M180 116H220" />
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M360 116H400" />
+          <path className="system-map-line system-map-line--keyword" markerEnd="url(#arch-arrow)" d="M540 116H574V86H610" />
+          <path className="system-map-line system-map-line--semantic" markerEnd="url(#arch-arrow)" d="M540 116H574V205H610" />
+
+          {/* ── Search-time arrows ───────────────────── */}
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M180 412H220" />
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M360 412H400" />
+          <path className="system-map-line system-map-line--keyword" markerEnd="url(#arch-arrow)" d="M540 412H576V382H610" />
+          <path className="system-map-line system-map-line--semantic" markerEnd="url(#arch-arrow)" d="M540 412H576V505H610" />
+          <path className="system-map-line system-map-line--keyword" markerEnd="url(#arch-arrow)" d="M750 382H782V442H810" />
+          <path className="system-map-line system-map-line--semantic" markerEnd="url(#arch-arrow)" d="M750 505H782V442H810" />
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M950 442H990" />
+          <path className="system-map-line" markerEnd="url(#arch-arrow)" d="M1130 442H1170" />
+
+          {/* ── Index lookup dashed lines ────────────── */}
+          <path className="system-map-link system-map-link--keyword" markerEnd="url(#arch-arrow)" d="M680 127V292H680V352" />
+          <path className="system-map-link system-map-link--semantic" markerEnd="url(#arch-arrow)" d="M680 246V292H680V475" />
+
+          {/* ── RAG pipeline arrows ──────────────────── */}
+          <path className="system-map-line system-map-line--ai" markerEnd="url(#arch-arrow-ai)" d="M540 412H560V690H610" />
+          <path className="system-map-line system-map-line--ai" markerEnd="url(#arch-arrow-ai)" d="M750 710H810" />
+          <path className="system-map-line system-map-line--ai" markerEnd="url(#arch-arrow-ai)" d="M950 710H990" />
+          <path className="system-map-line system-map-line--ai" markerEnd="url(#arch-arrow-ai)" d="M1130 710H1170" />
+
+          {/* ── RAG ← Vector index dashed lookup ─────── */}
+          <path className="system-map-link system-map-link--ai" markerEnd="url(#arch-arrow-ai)" d="M680 246V590H680V670" />
+
+          {/* ═══ NODES ═══════════════════════════════ */}
+
+          {/* Index-time row */}
+          <g className="system-map-node">
+            <rect x="40" y="76" width="140" height="80" rx="8" />
+            <text x="60" y="108">Seed URLs</text><text x="60" y="132" className="system-map-detail">allowed domains</text>
+          </g>
+          <g className="system-map-node">
+            <rect x="220" y="76" width="140" height="80" rx="8" />
+            <text x="240" y="108">SiftBot crawl</text><text x="240" y="132" className="system-map-detail">robots + canonical URLs</text>
+          </g>
+          <g className="system-map-node">
+            <rect x="400" y="76" width="140" height="80" rx="8" />
+            <text x="420" y="108">Page store</text><text x="420" y="132" className="system-map-detail">clean text + content hash</text>
+          </g>
+          <g className="system-map-node system-map-node--keyword">
+            <rect x="610" y="46" width="140" height="80" rx="8" />
+            <text x="630" y="78">Keyword index</text><text x="630" y="102" className="system-map-detail">stems + positions</text>
+          </g>
+          <g className="system-map-node system-map-node--semantic">
+            <rect x="610" y="165" width="140" height="80" rx="8" />
+            <text x="630" y="197">Vector index</text><text x="630" y="221" className="system-map-detail">chunks + embeddings</text>
+          </g>
+
+          {/* Search-time row */}
+          <g className="system-map-node">
+            <rect x="40" y="372" width="140" height="80" rx="8" />
+            <text x="60" y="404">Search query</text><text x="60" y="428" className="system-map-detail">operators + phrases</text>
+          </g>
+          <g className="system-map-node">
+            <rect x="220" y="372" width="140" height="80" rx="8" />
+            <text x="240" y="404">Parse &amp; filter</text><text x="240" y="428" className="system-map-detail">shared vocabulary</text>
+          </g>
+          <g className="system-map-node">
+            <rect x="400" y="372" width="140" height="80" rx="8" />
+            <text x="420" y="404">Hybrid search</text><text x="420" y="428" className="system-map-detail">keyword + semantic</text>
+          </g>
+          <g className="system-map-node system-map-node--keyword">
+            <rect x="610" y="342" width="140" height="80" rx="8" />
+            <text x="630" y="374">BM25 retrieval</text><text x="630" y="398" className="system-map-detail">+ proximity score</text>
+          </g>
+          <g className="system-map-node system-map-node--semantic">
+            <rect x="610" y="465" width="140" height="80" rx="8" />
+            <text x="630" y="497">Semantic retrieval</text><text x="630" y="521" className="system-map-detail">vector similarity</text>
+          </g>
+          <g className="system-map-node system-map-node--fusion">
+            <rect x="810" y="402" width="140" height="80" rx="8" />
+            <text x="830" y="434">RRF fusion</text><text x="830" y="458" className="system-map-detail">one ranked list</text>
+          </g>
+          <g className="system-map-node">
+            <rect x="990" y="402" width="140" height="80" rx="8" />
+            <text x="1010" y="434">API + Redis</text><text x="1010" y="458" className="system-map-detail">snippets + pagination</text>
+          </g>
+          <g className="system-map-node system-map-node--output">
+            <rect x="1170" y="402" width="140" height="80" rx="8" />
+            <text x="1190" y="434">React UI</text><text x="1190" y="458" className="system-map-detail">ranked results</text>
+          </g>
+
+          {/* RAG row */}
+          <g className="system-map-node system-map-node--ai">
+            <rect x="610" y="670" width="140" height="80" rx="8" />
+            <text x="630" y="702">Chunk retrieval</text><text x="630" y="726" className="system-map-detail">top-50 vectors</text>
+          </g>
+          <g className="system-map-node system-map-node--ai">
+            <rect x="810" y="670" width="140" height="80" rx="8" />
+            <text x="830" y="702">Context builder</text><text x="830" y="726" className="system-map-detail">3 000-token window</text>
+          </g>
+          <g className="system-map-node system-map-node--ai">
+            <rect x="990" y="670" width="140" height="80" rx="8" />
+            <text x="1010" y="702">Groq LLM</text><text x="1010" y="726" className="system-map-detail">grounded generation</text>
+          </g>
+          <g className="system-map-node system-map-node--ai">
+            <rect x="1170" y="670" width="140" height="80" rx="8" />
+            <text x="1190" y="702">AI Overview</text><text x="1190" y="726" className="system-map-detail">answer + citations</text>
+          </g>
+
+          {/* ── Legend ───────────────────────────────── */}
+          <g className="system-map-legend" transform="translate(40 760)">
+            <path className="system-map-line system-map-line--keyword" d="M0 0H20" />
+            <text x="28" y="5">Keyword path</text>
+            <path className="system-map-line system-map-line--semantic" d="M120 0H140" />
+            <text x="148" y="5">Semantic path</text>
+            <path className="system-map-line system-map-line--ai" d="M260 0H280" />
+            <text x="288" y="5">RAG path</text>
+            <path className="system-map-link" d="M360 0H380" />
+            <text x="388" y="5">Index lookup</text>
+          </g>
+        </svg>
+      </div>
+    </figure>
+  )
+}
 
 function ArchPhase({
   id,
   title,
   intro,
   stages,
+  variant,
 }: {
   id: string
   title: string
   intro: string
   stages: readonly Stage[]
+  variant?: 'default' | 'ai'
 }) {
   return (
-    <div className="arch-phase" role="group" aria-labelledby={id}>
+    <div className={`arch-phase${variant === 'ai' ? ' arch-phase--ai' : ''}`} role="group" aria-labelledby={id}>
       <div className="arch-phase-head">
         <h3 id={id} className="arch-phase-title">
+          {variant === 'ai' && <span className="arch-phase-badge">RAG</span>}
           {title}
         </h3>
         <p className="arch-phase-intro">{intro}</p>
@@ -238,6 +515,38 @@ function ExternalIcon() {
   )
 }
 
+/* ═══════════════════════════════════════════════════════
+   Tech stack badge strip
+   ═══════════════════════════════════════════════════════ */
+
+const TECH_STACK = [
+  { name: 'Python',     role: 'Backend + pipelines' },
+  { name: 'FastAPI',    role: 'REST API' },
+  { name: 'MongoDB',    role: 'Pages + inverted index' },
+  { name: 'Atlas Vector Search', role: 'Semantic retrieval' },
+  { name: 'Redis',      role: 'Cache + rate limit' },
+  { name: 'E5-small',   role: 'Embedding model' },
+  { name: 'Groq',       role: 'LLM inference' },
+  { name: 'React + TS', role: 'Frontend' },
+] as const
+
+function TechStack() {
+  return (
+    <div className="tech-stack" role="list" aria-label="Technology stack">
+      {TECH_STACK.map((t) => (
+        <div key={t.name} className="tech-badge" role="listitem">
+          <span className="tech-badge-name">{t.name}</span>
+          <span className="tech-badge-role">{t.role}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   Page component
+   ═══════════════════════════════════════════════════════ */
+
 export function About() {
   useEffect(() => {
     document.title = 'About \u2013 Sift'
@@ -268,9 +577,9 @@ export function About() {
           </h1>
           <div className="about-hero-desc">
             <p>
-              Sift is an open-source search engine built from scratch, designed to
-              make finding information on the web simpler, faster, and more
-              transparent.
+              Sift is an open-source search engine built from scratch — from the
+              web crawler and inverted index to hybrid retrieval with RAG-powered
+              AI Overviews. Every piece is handcrafted, nothing is a black box.
             </p>
           </div>
           <a
@@ -297,18 +606,53 @@ export function About() {
               Sift began as an effort to understand and build search technology from
               the ground up. Rather than relying on existing search APIs or
               third-party indexes, Sift develops its own search pipeline from
-              crawling the web to returning ranked results.
+              crawling the web to returning ranked results — and now, to generating
+              AI-powered answers grounded in those results.
             </p>
             <p>
               The project explores how web pages are discovered, how their content
               is processed and organized, how documents are indexed for efficient
-              retrieval, and how results are ranked by relevance to a query.
+              retrieval, how results are ranked by relevance, and how a language
+              model can synthesise those results into a concise overview without
+              hallucinating.
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── How Sift Works ─────────────────────────── */}
+      {/* ── Architecture map (SVG) ──────────────────── */}
+      <section className="about-system-map" aria-labelledby="about-map-heading">
+        <div className="about-section">
+          <span className="about-section-label">System Architecture</span>
+          <h2 id="about-map-heading" className="about-section-heading">
+            Three pipelines, one search.
+          </h2>
+          <div className="about-section-body">
+            <p>
+              Everything Sift does flows through three parallel pipelines. The
+              indexing pipeline runs ahead of time. When someone searches, the
+              query splits into a keyword path and a semantic path, fused by
+              Reciprocal Rank Fusion. A third RAG pipeline retrieves relevant
+              chunks, builds grounded context, and calls a language model to
+              generate an AI Overview with citations.
+            </p>
+          </div>
+          <ArchitectureMap />
+        </div>
+      </section>
+
+      {/* ── Tech stack ──────────────────────────────── */}
+      <section className="about-tech" aria-labelledby="about-tech-heading">
+        <div className="about-section">
+          <span className="about-section-label">Built With</span>
+          <h2 id="about-tech-heading" className="about-section-heading">
+            The stack behind Sift.
+          </h2>
+          <TechStack />
+        </div>
+      </section>
+
+      {/* ── How Sift Works (detailed stages) ─────────── */}
       <section className="about-arch" aria-labelledby="about-arch-heading">
         <div className="about-section">
           <span className="about-section-label">How It Works</span>
@@ -317,15 +661,14 @@ export function About() {
           </h2>
           <div className="about-section-body">
             <p>
-              Sift works in two halves. Ahead of time, it crawls pages, cleans
-              them up and files every word into an index. When someone
-              searches, it reads the query the same way, looks the words up in
-              that index and ranks whatever matches.
+              Sift works in three phases. Ahead of time, it crawls pages, cleans
+              them up and files every word into a keyword index while simultaneously
+              embedding chunks into a vector store. When someone searches, hybrid
+              retrieval runs both paths and fuses them. And now, a RAG pipeline
+              generates AI Overviews grounded entirely in the retrieved pages.
             </p>
             <p>
-              This is the pipeline as it exists in the repository today. Each
-              stage links to its source, and the larger marker is the index,
-              where the two halves meet.
+              Each stage below links to its source code on GitHub.
             </p>
           </div>
 
@@ -342,6 +685,13 @@ export function About() {
               intro="A FastAPI endpoint runs these steps for every query and returns a page of ranked results with snippets, which the React and TypeScript interface displays."
               stages={QUERY_STAGES}
             />
+            <ArchPhase
+              id="arch-ai-heading"
+              title="AI Overview generation"
+              intro="When enabled, a parallel RAG pipeline retrieves chunks from the vector index, builds a grounded context, and generates a cited AI Overview."
+              stages={AI_OVERVIEW_STAGES}
+              variant="ai"
+            />
           </div>
         </div>
       </section>
@@ -355,11 +705,10 @@ export function About() {
           </h2>
           <div className="about-section-body">
             <p>
-              Today, Sift matches the words you type. The work ahead is about
-              what comes after a match: finding more relevant pages,
-              understanding what a query means and explaining what was found.
-              These are directions Sift is exploring, not features available
-              today.
+              Sift combines lexical retrieval, semantic search and RAG-powered
+              AI Overviews in a single pipeline. The work ahead is about sharpening
+              relevance, deepening semantic understanding, and making those
+              AI-generated answers even more accurate and useful.
             </p>
           </div>
 
@@ -386,8 +735,9 @@ export function About() {
           <div className="about-section-body">
             <p>
               Sift is an open-source project exploring search architecture,
-              information retrieval, ranking algorithms, and the systems that make
-              web search possible. The entire codebase is publicly available.
+              information retrieval, ranking algorithms, RAG pipelines, and the
+              systems that make web search possible. The entire codebase is
+              publicly available.
             </p>
           </div>
           <a

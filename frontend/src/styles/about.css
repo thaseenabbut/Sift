@@ -587,6 +587,203 @@
   }
 }
 
+/* ── System architecture map ───────────────────────── */
+.system-map {
+  margin: 32px 0 0;
+}
+
+.system-map-caption {
+  margin: 0 0 16px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.system-map-label--ai {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.system-map-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.system-map-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.system-map-svg {
+  display: block;
+  width: 100%;
+  min-width: 900px;
+  height: auto;
+}
+
+/* Text styling inside the SVG */
+.system-map-lane {
+  font-family: var(--font-code);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--ink-soft);
+  opacity: 0.65;
+}
+
+.system-map-node rect {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.system-map-node text {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.system-map-detail {
+  font-family: var(--font-code);
+  font-size: 10.5px;
+  font-weight: 400;
+  fill: var(--ink-soft);
+}
+
+/* Colour-coded node borders */
+.system-map-node--keyword rect { stroke: var(--accent); }
+.system-map-node--semantic rect { stroke: #a78bfa; }
+.system-map-node--fusion rect { stroke: var(--ink-soft); stroke-dasharray: 4 3; }
+.system-map-node--output rect { stroke: var(--accent); fill: var(--accent); }
+.system-map-node--output text { fill: var(--on-accent); }
+.system-map-node--output .system-map-detail { fill: var(--on-accent); opacity: 0.8; }
+
+/* AI / RAG nodes: green accent */
+.system-map-node--ai rect {
+  stroke: #22c55e;
+  fill: rgba(34, 197, 94, 0.06);
+}
+
+/* Arrows */
+.system-map-arrow { fill: var(--ink-soft); }
+.system-map-arrow--ai { fill: #22c55e; }
+
+/* Lines */
+.system-map-line {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.system-map-line--keyword { stroke: var(--accent); opacity: 0.7; }
+.system-map-line--semantic { stroke: #a78bfa; opacity: 0.7; }
+.system-map-line--ai { stroke: #22c55e; opacity: 0.7; stroke-width: 2; }
+
+/* Dashed index-lookup lines */
+.system-map-link {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+  opacity: 0.4;
+}
+
+.system-map-link--keyword { stroke: var(--accent); }
+.system-map-link--semantic { stroke: #a78bfa; }
+.system-map-link--ai { stroke: #22c55e; opacity: 0.5; }
+
+/* Legend row */
+.system-map-legend text {
+  font-family: var(--font-code);
+  font-size: 11px;
+  fill: var(--ink-soft);
+}
+
+/* ── Tech stack badges ─────────────────────────────── */
+.about-tech {
+  padding-top: clamp(32px, 6vh, 60px);
+  padding-bottom: clamp(32px, 6vh, 60px);
+}
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.tech-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+
+.tech-badge:hover {
+  border-color: var(--accent);
+}
+
+.tech-badge-name {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tech-badge-role {
+  font-family: var(--font-code);
+  font-size: 0.6875rem;
+  color: var(--ink-soft);
+}
+
+/* ── AI-phase variant (green accent spine) ─────────── */
+.arch-phase--ai {
+  border-top-color: #22c55e;
+}
+
+.arch-phase--ai .arch-node {
+  border-color: #22c55e;
+}
+
+.arch-phase--ai .arch-stage::before {
+  background: #22c55e;
+  opacity: 0.35;
+}
+
+.arch-phase--ai .arch-stage:not(:first-child)::after {
+  border-color: #22c55e;
+}
+
+.arch-phase-badge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  font-family: var(--font-code);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* ── System-map section ────────────────────────────── */
+.about-system-map {
+  padding-top: clamp(48px, 8vh, 80px);
+  padding-bottom: clamp(48px, 8vh, 80px);
+}
+
 /* ── Reduced motion ────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .about-page *,
